@@ -34,18 +34,6 @@ credits out of 170 after ES 418 is confirmed as an open elective.
 3. Run `npm run dev`.
 4. Open the local URL shown in the terminal.
 
-## Publish with GitHub Pages
-
-1. Create a GitHub repository named `degree-navigator`.
-2. Upload all files from this project, including the hidden `.github` folder.
-3. Open **Settings → Pages** in the repository.
-4. Under **Build and deployment**, choose **GitHub Actions**.
-5. Open the **Actions** tab and wait for **Deploy Degree Navigator** to finish.
-6. Your public site will be available at:
-   `https://YOUR-USERNAME.github.io/degree-navigator/`
-
-Every push to the `main` branch automatically publishes the latest version.
-
 ## Accuracy notice
 
 This is a planning aid based on Academic Affairs Advisory No. 13 (January 2025). Students should confirm unusual approvals, substitutions and exceptions with their faculty advisor or Academic Affairs.
