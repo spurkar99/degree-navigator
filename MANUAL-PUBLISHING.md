@@ -52,6 +52,19 @@ GitHub also shows the exact URL on the repository's Pages settings screen.
 Upload or commit changed files to the `main` branch. The workflow publishes the
 new version automatically.
 
+For the v0.2 ZIP:
+
+1. Extract the ZIP on your computer.
+2. Open the extracted `degree-navigator-github` folder.
+3. In the repository, select **Add file → Upload files**.
+4. Drag the contents of the extracted folder into GitHub. Do not upload the ZIP itself.
+5. Confirm that `src/App.tsx`, `src/lib/excel.ts`, `package.json`, and
+   `package-lock.json` are included in the pending upload.
+6. Commit with the message `Release Degree Navigator v0.2`.
+7. Wait for **Deploy Degree Navigator** to turn green in the Actions tab.
+
+The existing Pages workflow does not need to be recreated for this update.
+
 ## Common fixes
 
 - **404 page:** Confirm Pages uses **GitHub Actions**, not “Deploy from a branch.”
