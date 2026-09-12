@@ -7,87 +7,54 @@ import {
   Check,
   CheckCircle2,
   ClipboardPaste,
+  Download,
+  FileSpreadsheet,
   GraduationCap,
+  Plus,
   RotateCcw,
   ShieldCheck,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
 import {
-  ambiguousCourses,
   auditCourses,
+  autoClassify,
+  classificationSource,
   courseKey,
   type Classifications,
 } from "./lib/audit";
-import { TOTAL_REQUIRED, type BasketId } from "./lib/rules";
-import { parseAll, parseSemester, type Course } from "./lib/parser";
+import { normalizeCode, parseAll, parseSemester, type Course } from "./lib/parser";
+import { BASKET_LABELS, TOTAL_REQUIRED, type BasketId } from "./lib/rules";
+import { SAMPLE_TRANSCRIPT } from "./lib/sample";
+import { buildSuggestions } from "./lib/suggestions";
 
-type Stage = "profile" | "courses" | "audit";
+type Stage = "profile" | "courses" | "review" | "audit";
 
-const SAMPLE: Record<number, string> = {
-  1: `| ES 101 | Engineering Graphics | 3 |
-| ES 112 | Computing | 3 |
-| ES 115 | Design, Innovation, and Prototyping | 5 |
-| ES 118 | Materials for the Future | 3 |
-| FP 100 | Foundation Programme | 4 |
-| HS 191 | Introduction to Writing I | 2 |
-| HS 201 | World Civilizations and Cultures | 4 |
-| IN 101 | Comprehensive Viva Voce | 0 |
-| MA 103 | Calculus of Single Variable and Linear Algebra | 4 |
-| PE 101 | Physical Education | 0 |
-| SC 368 | Introduction to Web Development | 1 |`,
-  2: `| BS 192 | Undergraduate Science Laboratory | 3 |
-| ES 113 | Data-Centric Computing | 3 |
-| ES 114 | Probability, Statistics, and Data Visualization | 3 |
-| ES 116 | Principles and Applications of Electrical Engineering | 5 |
-| ES 117 | The World of Engineering | 2 |
-| GE 101 | General Education I | 2 |
-| HS 192 | Introduction to Writing II | 2 |
-| IN 102 | Comprehensive Viva Voce | 0 |
-| MA 104 | Ordinary Differential Equations | 2 |
-| PE 102 | Physical Education | 0 |
-| CL 201 | Chemical Process Calculations | 3 |`,
-  3: `| CL 328 | Chemical Engineering Practice in Industry | 2 |
-| ES 211 | Thermodynamics | 3 |
-| ES 243 | Biology for Engineers | 4 |
-| GE 201 | General Education II | 2 |
-| HS 221 | Introduction to Philosophy | 4 |
-| IN 103 | Comprehensive Viva Voce | 0 |
-| MA 205 | Calculus of Several Variables | 2 |
-| MS 408 | Financial Considerations In Engineering Decisions | 4 |
-| PE 103 | Physical Education | 0 |
-| CL 202 | Chemical Engineering Thermodynamics | 3 |`,
-  4: `| CL 203 | Process Fluid Mechanics | 3 |
-| CL 204 | Heat Transfer | 3 |
-| CL 205 | Chemical Reaction Engineering I | 3 |
-| EH 612 | Ocean and Global Change | 4 |
-| ES 418 | Financial Modeling and Engineering | 4 |
-| IN 104 | Comprehensive Viva Voce | 0 |
-| MA 203 | Numerical Methods | 2 |
-| MS 491-XVI | Special Topics in Management: Lean Six Sigma | 4 |
-| PE 104 | Physical Education | 0 |`,
-};
-
-const OPTIONS: { value: BasketId; label: string; note: string }[] = [
-  { value: "chemical_elective", label: "ChE Discipline Elective", note: "Approved toward the 20-credit ChE elective basket" },
-  { value: "hss", label: "HSS / Management Elective", note: "Approved Humanities, Social Science or Management elective" },
-  { value: "science", label: "Science / BS Elective", note: "Approved Science basket or Basic Science elective" },
-  { value: "open_project", label: "Open Project", note: "The required 4-credit open project course" },
-  { value: "open_elective", label: "Open Elective", note: "Counts toward the 16-credit open elective basket" },
-  { value: "excluded", label: "Does not count", note: "Appears on the transcript but not in graduation credits" },
-  { value: "unresolved", label: "I'm not sure", note: "Keep it visible for review without guessing" },
+const OPTION_IDS: BasketId[] = [
+  "foundation", "institute", "mathematics", "hss", "science",
+  "open_project", "open_elective", "chemical_core", "chemical_elective",
+  "excluded", "unresolved",
 ];
 
 function Steps({ stage }: { stage: Stage }) {
-  const index = stage === "profile" ? 1 : stage === "courses" ? 2 : 3;
+  const labels: { id: Stage; label: string }[] = [
+    { id: "profile", label: "Profile" },
+    { id: "courses", label: "Courses" },
+    { id: "review", label: "Review" },
+    { id: "audit", label: "Audit" },
+  ];
+  const index = labels.findIndex((item) => item.id === stage) + 1;
+
   return (
     <nav className="steps" aria-label="Audit steps">
-      {["Profile", "Courses", "Audit"].map((label, item) => {
-        const step = item + 1;
+      {labels.map((item, itemIndex) => {
+        const step = itemIndex + 1;
         return (
-          <div className="step-wrap" key={label}>
-            {item > 0 && <span className="step-line" />}
+          <div className="step-wrap" key={item.id}>
+            {itemIndex > 0 && <span className="step-line" />}
             <span className={`step ${step === index ? "active" : ""} ${step < index ? "done" : ""}`}>
               <span className="step-number">{step < index ? <Check size={15} /> : step}</span>
-              <span>{label}</span>
+              <span>{item.label}</span>
             </span>
           </div>
         );
@@ -99,27 +66,29 @@ function Steps({ stage }: { stage: Stage }) {
 function Bar({ value }: { value: number }) {
   return (
     <div className="bar" aria-label={`${Math.round(value)} percent`}>
-      <span style={{ width: `${Math.min(100, value)}%` }} />
+      <span style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
   );
 }
 
 export default function App() {
   const [stage, setStage] = useState<Stage>("profile");
+  const [studentName, setStudentName] = useState("");
+  const [rollNumber, setRollNumber] = useState("");
   const [current, setCurrent] = useState("");
   const [inputs, setInputs] = useState<Record<number, string>>({});
   const [courses, setCourses] = useState<Course[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [choices, setChoices] = useState<Classifications>({});
-  const [questions, setQuestions] = useState<Course[]>([]);
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [selected, setSelected] = useState<BasketId | "">("");
-  const [showQuestion, setShowQuestion] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const completed = Math.max(0, Number(current || 0) - 1);
   const semesters = Array.from({ length: completed }, (_, index) => index + 1);
   const audit = useMemo(() => auditCourses(courses, choices), [courses, choices]);
-  const question = questions[questionIndex];
+  const suggestions = useMemo(() => buildSuggestions(audit, completed), [audit, completed]);
+  const coursesNeedingAnswers = courses.filter(
+    (course) => autoClassify(course) === null && choices[courseKey(course)] === undefined,
+  );
 
   function continueToCourses() {
     const next = { ...inputs };
@@ -131,49 +100,98 @@ export default function App() {
   }
 
   function loadSample() {
+    setStudentName("Example Student");
+    setRollNumber("24110000");
     setCurrent("5");
-    setInputs(SAMPLE);
+    setInputs(SAMPLE_TRANSCRIPT);
     setStage("courses");
   }
 
   function analyze() {
     const parsed = parseAll(inputs);
-    const uncertain = ambiguousCourses(parsed.courses);
     setCourses(parsed.courses);
     setWarnings(parsed.warnings);
     setChoices({});
-    setQuestions(uncertain);
-    setQuestionIndex(0);
-    setSelected("");
-    if (uncertain.length) setShowQuestion(true);
-    else setStage("audit");
+    setStage("review");
   }
 
-  function confirmChoice() {
-    if (!selected || !question) return;
-    setChoices((existing) => ({ ...existing, [courseKey(question)]: selected }));
-    if (questionIndex < questions.length - 1) {
-      setQuestionIndex((value) => value + 1);
-      setSelected("");
-    } else {
-      setShowQuestion(false);
-      setStage("audit");
+  function updateCourse(index: number, update: Partial<Course>) {
+    const previous = courses[index];
+    const oldKey = courseKey(previous);
+    setCourses((existing) => existing.map((course, courseIndex) => (
+      courseIndex === index ? { ...course, ...update } : course
+    )));
+    if (update.code !== undefined || update.semester !== undefined) {
+      setChoices((existing) => {
+        const next = { ...existing };
+        delete next[oldKey];
+        return next;
+      });
     }
+  }
+
+  function removeCourse(index: number) {
+    const key = courseKey(courses[index]);
+    setCourses((existing) => existing.filter((_, courseIndex) => courseIndex !== index));
+    setChoices((existing) => {
+      const next = { ...existing };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function addCourse() {
+    setCourses((existing) => [...existing, {
+      semester: Math.max(1, completed), code: "", title: "", credits: 0,
+    }]);
+  }
+
+  function setClassification(course: Course, basket: BasketId | "") {
+    const key = courseKey(course);
+    setChoices((existing) => {
+      const next = { ...existing };
+      if (!basket) delete next[key];
+      else next[key] = basket;
+      return next;
+    });
+  }
+
+  async function exportAudit() {
+    setExporting(true);
+    try {
+      const { downloadAuditWorkbook } = await import("./lib/excel");
+      await downloadAuditWorkbook(
+        { name: studentName, rollNumber, currentSemester: Number(current) },
+        courses, choices, audit, suggestions,
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function exportTemplate() {
+    const { downloadInputTemplate } = await import("./lib/excel");
+    await downloadInputTemplate();
   }
 
   function reset() {
     setStage("profile");
+    setStudentName("");
+    setRollNumber("");
     setCurrent("");
     setInputs({});
     setCourses([]);
     setWarnings([]);
     setChoices({});
-    setQuestions([]);
   }
 
-  const canAnalyze =
-    semesters.length > 0 &&
-    semesters.every((semester) => parseSemester(inputs[semester] ?? "", semester).courses.length);
+  const canAnalyze = semesters.length > 0 && semesters.every(
+    (semester) => parseSemester(inputs[semester] ?? "", semester).courses.length,
+  );
+  const validCourses = courses.length > 0 && courses.every(
+    (course) => course.code.trim() && course.title.trim() && Number.isFinite(course.credits) && course.credits >= 0,
+  );
+  const canAudit = validCourses && coursesNeedingAnswers.length === 0;
 
   return (
     <main>
@@ -183,7 +201,7 @@ export default function App() {
             <span className="brand-icon"><GraduationCap size={22} /></span>
             <div><strong>Degree Navigator</strong><small>IIT Gandhinagar</small></div>
           </div>
-          <span className="cohort">ChE · 2024–28</span>
+          <span className="cohort">ChE · 2024–28 · v0.2</span>
         </div>
       </header>
 
@@ -197,9 +215,19 @@ export default function App() {
               <h1>See exactly what you’ve finished—and what is left.</h1>
               <p className="lede">
                 Built for B.Tech Chemical Engineering students admitted in 2024.
-                Your course tables are processed in this browser.
+                Your course tables and Excel files are processed in this browser.
               </p>
               <div className="panel form-panel">
+                <div className="form-grid">
+                  <label>
+                    <span>Name <small>optional</small></span>
+                    <input value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="Your name" />
+                  </label>
+                  <label>
+                    <span>Roll number <small>optional</small></span>
+                    <input value={rollNumber} onChange={(event) => setRollNumber(event.target.value)} placeholder="24XXXXXX" />
+                  </label>
+                </div>
                 <label htmlFor="semester">Which semester are you currently in?</label>
                 <p>We’ll create one paste field for every completed semester.</p>
                 <select id="semester" value={current} onChange={(event) => setCurrent(event.target.value)}>
@@ -213,6 +241,9 @@ export default function App() {
                   Continue to course entry <ArrowRight size={18} />
                 </button>
                 <button className="button text wide" onClick={loadSample}>Load the four-semester example</button>
+                <button className="button text wide" onClick={() => void exportTemplate()}>
+                  <FileSpreadsheet size={18} /> Download blank Excel template
+                </button>
               </div>
             </div>
             <aside className="summary-card">
@@ -223,9 +254,9 @@ export default function App() {
               </div>
               <div className="summary-list">
                 {[
-                  ["Exact requirement matching", "Fixed institute, Math and ChE core courses"],
+                  ["Review before calculating", "Correct every parsed course and requirement basket"],
+                  ["Downloadable workbook", "Keep or share a six-sheet personalised audit"],
                   ["No silent guesses", "You confirm any course we cannot place"],
-                  ["Non-credit checks", "Physical Education and semester viva records"],
                 ].map(([title, note]) => (
                   <div className="summary-item" key={title}>
                     <CheckCircle2 size={20} />
@@ -272,9 +303,84 @@ export default function App() {
             <div className="action-bar">
               <button className="button text" onClick={() => setStage("profile")}><ArrowLeft size={18} /> Back</button>
               <div>
+                <button className="button secondary" onClick={() => void exportTemplate()}><Download size={18} /> Excel template</button>
                 <button className="button secondary" onClick={loadSample}><ClipboardPaste size={18} /> Use example</button>
                 <button className="button primary" disabled={!canAnalyze} onClick={analyze}>
-                  Review my courses <ArrowRight size={18} />
+                  Review parsed courses <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {stage === "review" && (
+          <section>
+            <div className="section-head">
+              <div>
+                <p className="eyebrow">Check before calculating</p>
+                <h1>Review every parsed course</h1>
+                <p>Edit incorrect values, remove extra rows and answer any classification questions.</p>
+              </div>
+              <span className="cohort light">{courses.length} courses found</span>
+            </div>
+
+            {!!warnings.length && (
+              <div className="warning">
+                <AlertTriangle size={20} />
+                <div><strong>{warnings.length} pasted row{warnings.length === 1 ? " needs" : "s need"} attention</strong>
+                  {warnings.map((warning) => <p key={warning}>{warning}</p>)}
+                </div>
+              </div>
+            )}
+
+            {!!coursesNeedingAnswers.length && (
+              <div className="warning">
+                <AlertTriangle size={20} />
+                <div><strong>We are not sure where {coursesNeedingAnswers.length} course{coursesNeedingAnswers.length === 1 ? "" : "s"} should count.</strong>
+                  <p>Choose a requirement below, or explicitly select “I’m not sure”. Nothing will be guessed.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="panel review-panel">
+              <div className="review-table-wrap">
+                <table className="review-table">
+                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th><th>Source</th><th aria-label="Delete" /></tr></thead>
+                  <tbody>
+                    {courses.map((course, index) => {
+                      const automatic = autoClassify(course);
+                      const value = choices[courseKey(course)] ?? automatic ?? "";
+                      const source = classificationSource(course, choices);
+                      return (
+                        <tr key={index} className={!value ? "needs-answer" : ""}>
+                          <td><input className="cell-number" type="number" min="1" max="8" value={course.semester} onChange={(event) => updateCourse(index, { semester: Number(event.target.value) })} /></td>
+                          <td><input className="cell-code" value={course.code} onChange={(event) => updateCourse(index, { code: event.target.value.toUpperCase() })} onBlur={(event) => updateCourse(index, { code: normalizeCode(event.target.value) })} /></td>
+                          <td><input value={course.title} onChange={(event) => updateCourse(index, { title: event.target.value })} /></td>
+                          <td><input className="cell-number" type="number" min="0" step="0.5" value={course.credits} onChange={(event) => updateCourse(index, { credits: Number(event.target.value) })} /></td>
+                          <td>
+                            <select value={value} onChange={(event) => setClassification(course, event.target.value as BasketId | "")}>
+                              <option value="">Choose category…</option>
+                              {OPTION_IDS.map((id) => <option key={id} value={id}>{BASKET_LABELS[id]}</option>)}
+                            </select>
+                          </td>
+                          <td><span className={`source-tag ${source === "Needs review" ? "pending" : ""}`}>{source}</span></td>
+                          <td><button className="icon-button" onClick={() => removeCourse(index)} aria-label={`Delete ${course.code}`}><Trash2 size={17} /></button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <button className="button text add-course" onClick={addCourse}><Plus size={17} /> Add a missing course</button>
+            </div>
+
+            <div className="action-bar">
+              <button className="button text" onClick={() => setStage("courses")}><ArrowLeft size={18} /> Edit pasted tables</button>
+              <div>
+                {!validCourses && <span className="action-note">Complete every course row.</span>}
+                {!!coursesNeedingAnswers.length && <span className="action-note">Answer {coursesNeedingAnswers.length} classification question{coursesNeedingAnswers.length === 1 ? "" : "s"}.</span>}
+                <button className="button primary" disabled={!canAudit} onClick={() => setStage("audit")}>
+                  Calculate my audit <ArrowRight size={18} />
                 </button>
               </div>
             </div>
@@ -287,21 +393,21 @@ export default function App() {
               <div>
                 <p className="eyebrow">Your degree audit</p>
                 <h1>{audit.allocated} of {TOTAL_REQUIRED} credits placed</h1>
-                <p>{courses.length} courses read across {completed} completed semesters.</p>
+                <p>{courses.length} courses reviewed across {completed} completed semesters.</p>
               </div>
               <div className="head-actions">
-                <button className="button secondary" onClick={() => setStage("courses")}><ArrowLeft size={18} /> Edit courses</button>
+                <button className="button secondary" onClick={() => setStage("review")}><ArrowLeft size={18} /> Review courses</button>
+                <button className="button primary" disabled={exporting} onClick={() => void exportAudit()}>
+                  <FileSpreadsheet size={18} /> {exporting ? "Preparing Excel…" : "Download Excel audit"}
+                </button>
                 <button className="button text" onClick={reset}><RotateCcw size={18} /> Start over</button>
               </div>
             </div>
 
-            {(audit.unresolved.length > 0 || warnings.length > 0) && (
+            {audit.unresolved.length > 0 && (
               <div className="warning">
                 <AlertTriangle size={20} />
-                <div><strong>Review needed</strong><p>
-                  {!!audit.unresolved.length && `${audit.unresolved.length} course(s) remain unclassified. `}
-                  {!!warnings.length && `${warnings.length} pasted row(s) could not be read.`}
-                </p></div>
+                <div><strong>Review needed</strong><p>{audit.unresolved.length} course(s), worth {audit.pending} credits, remain unclassified.</p></div>
               </div>
             )}
 
@@ -345,9 +451,23 @@ export default function App() {
               </div>
             </div>
 
+            <div className="panel suggestions-panel">
+              <div className="suggestions-head"><div><p className="eyebrow">Plan ahead</p><h2>Suggested next actions</h2></div><Sparkles size={24} /></div>
+              <p className="suggestions-note">These suggestions use requirement gaps only. They do not assume future course availability, prerequisites or approvals.</p>
+              <div className="suggestion-list">
+                {suggestions.map((suggestion) => (
+                  <article key={`${suggestion.priority}:${suggestion.title}`}>
+                    <span>{suggestion.priority}</span>
+                    <div><strong>{suggestion.title}</strong><p>{suggestion.detail}</p></div>
+                  </article>
+                ))}
+              </div>
+            </div>
+
             <div className="bottom-grid">
               <div className="panel missing">
                 <h2>Missing fixed courses</h2>
+                {!audit.missingGroups.length && <p className="empty-state">No missing fixed courses found.</p>}
                 {audit.missingGroups.map((group) => (
                   <div className="missing-group" key={group.id}>
                     <h3>{group.name}</h3>
@@ -359,7 +479,7 @@ export default function App() {
               </div>
               <div className="panel method">
                 <h2>How this result was calculated</h2>
-                <p><CheckCircle2 size={17} /> Fixed courses were matched by course code.</p>
+                <p><CheckCircle2 size={17} /> You reviewed every parsed course before calculation.</p>
                 <p><CheckCircle2 size={17} /> CL 328 was recognized as a ChE discipline elective.</p>
                 <p><CheckCircle2 size={17} /> Uncertain courses were classified only after your answer.</p>
                 <small>
@@ -371,40 +491,6 @@ export default function App() {
           </section>
         )}
       </div>
-
-      {showQuestion && question && (
-        <div className="modal-backdrop" role="presentation">
-          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="classification-title">
-            <span className="modal-icon"><AlertTriangle size={21} /></span>
-            <h2 id="classification-title">Where should this course count?</h2>
-            <p>We could not place it confidently, so no basket has been selected for you.</p>
-            <div className="course-question">
-              <b>{question.code}</b><strong>{question.title}</strong>
-              <span>Semester {question.semester} · {question.credits} credits</span>
-            </div>
-            <div className="options">
-              {OPTIONS.map((option) => (
-                <label className={selected === option.value ? "selected" : ""} key={option.value}>
-                  <input
-                    type="radio"
-                    name="classification"
-                    value={option.value}
-                    checked={selected === option.value}
-                    onChange={() => setSelected(option.value)}
-                  />
-                  <span><strong>{option.label}</strong><small>{option.note}</small></span>
-                </label>
-              ))}
-            </div>
-            <div className="modal-actions">
-              <button className="button secondary" onClick={() => setShowQuestion(false)}>Back to courses</button>
-              <button className="button primary" disabled={!selected} onClick={confirmChoice}>
-                Confirm {questions.length > 1 ? `(${questionIndex + 1} of ${questions.length})` : ""}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }
