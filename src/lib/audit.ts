@@ -38,6 +38,14 @@ export function ambiguousCourses(courses: Course[]) {
   return courses.filter((course) => autoClassify(course) === null);
 }
 
+export function resolveBasket(course: Course, choices: Classifications): BasketId {
+  return choices[courseKey(course)] ?? autoClassify(course) ?? "unresolved";
+}
+
+export function classificationSource(course: Course, choices: Classifications) {
+  return choices[courseKey(course)] ? "Student selected" : autoClassify(course) ? "Rule matched" : "Needs review";
+}
+
 export function auditCourses(courses: Course[], choices: Classifications) {
   const totals = Object.fromEntries(REQUIREMENTS.map((item) => [item.id, 0])) as Record<
     (typeof REQUIREMENTS)[number]["id"],
@@ -47,7 +55,7 @@ export function auditCourses(courses: Course[], choices: Classifications) {
   const excluded: Course[] = [];
 
   courses.forEach((course) => {
-    const basket = autoClassify(course) ?? choices[courseKey(course)];
+    const basket = resolveBasket(course, choices);
     if (!basket || basket === "unresolved") {
       unresolved.push(course);
     } else if (basket === "excluded") {
@@ -77,6 +85,7 @@ export function auditCourses(courses: Course[], choices: Classifications) {
   const allocated = progress.reduce((sum, item) => sum + item.completed, 0);
   return {
     progress,
+    totals,
     allocated,
     remaining: TOTAL_REQUIRED - allocated,
     pending: unresolved.reduce((sum, course) => sum + course.credits, 0),

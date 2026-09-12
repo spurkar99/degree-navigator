@@ -25,6 +25,27 @@ export const REQUIREMENTS = [
 
 export const TOTAL_REQUIRED = 170;
 
+export const BASKET_LABELS: Record<BasketId, string> = {
+  foundation: "Foundation Programme",
+  institute: "Institute compulsory",
+  mathematics: "Mathematics",
+  hss: "HSS / Management",
+  science: "Science / BS Elective",
+  open_project: "Open Project",
+  open_elective: "Open Elective",
+  chemical_core: "Chemical Engineering Core",
+  chemical_elective: "ChE Discipline Elective",
+  excluded: "Does not count",
+  unresolved: "I'm not sure",
+};
+
+export const RULESET = {
+  programme: "B.Tech Chemical Engineering",
+  cohort: "2024–28",
+  version: "0.2.0",
+  source: "Academic Affairs Advisory No. 13 (January 2025)",
+} as const;
+
 export const INSTITUTE = new Set([
   "ES 101", "ES 112", "ES 113", "ES 114", "ES 115",
   "ES 116", "ES 117", "ES 118", "ES 243", "BS 192",

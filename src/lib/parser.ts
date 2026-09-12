@@ -59,9 +59,15 @@ export function parseSemester(input: string, semester: number) {
         /^([A-Z]{2,3}\s*\d{3}(?:-[A-Z0-9]+)?)\s+(.+?)\s+(\d+(?:\.\d+)?)$/i,
       );
       if (plain) {
+        const code = normalizeCode(plain[1]);
+        if (seen.has(code)) {
+          warnings.push(`Semester ${semester}: duplicate ${code} ignored.`);
+          return;
+        }
+        seen.add(code);
         courses.push({
           semester,
-          code: normalizeCode(plain[1]),
+          code,
           title: plain[2].trim(),
           credits: Number(plain[3]),
         });
