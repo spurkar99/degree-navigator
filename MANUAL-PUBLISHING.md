@@ -17,7 +17,7 @@ The GitHub website does not accept a ZIP as a deployable project. Extract the ZI
 2. Select **uploading an existing file**.
 3. Drag the extracted project files and folders into the upload area.
 4. Confirm that these items are present:
-   - `.github/workflows/deploy-pages.yml`
+   - `.github/workflows/main.yml`
    - `src/`
    - `index.html`
    - `package.json`
@@ -27,7 +27,7 @@ The GitHub website does not accept a ZIP as a deployable project. Extract the ZI
 6. Select **Commit changes**.
 
 If the browser upload does not preserve the hidden `.github` folder, create
-`.github/workflows/deploy-pages.yml` through GitHub's **Add file → Create new file**
+`.github/workflows/main.yml` through GitHub's **Add file → Create new file**
 screen and paste the supplied workflow into it.
 
 ## 3. Enable GitHub Pages
@@ -52,15 +52,15 @@ GitHub also shows the exact URL on the repository's Pages settings screen.
 Upload or commit changed files to the `main` branch. The workflow publishes the
 new version automatically.
 
-For the v0.2 ZIP:
+For the v0.3 ZIP:
 
 1. Extract the ZIP on your computer.
-2. Open the extracted `degree-navigator-github` folder.
+2. Open the extracted `degree-navigator` folder.
 3. In the repository, select **Add file → Upload files**.
 4. Drag the contents of the extracted folder into GitHub. Do not upload the ZIP itself.
 5. Confirm that `src/App.tsx`, `src/lib/excel.ts`, `package.json`, and
    `package-lock.json` are included in the pending upload.
-6. Commit with the message `Release Degree Navigator v0.2`.
+6. Commit with the message `Release Degree Navigator v0.3`.
 7. Wait for **Deploy Degree Navigator** to turn green in the Actions tab.
 
 The existing Pages workflow does not need to be recreated for this update.
@@ -69,6 +69,6 @@ The existing Pages workflow does not need to be recreated for this update.
 
 - **404 page:** Confirm Pages uses **GitHub Actions**, not “Deploy from a branch.”
 - **Workflow missing:** Confirm the file exists at
-  `.github/workflows/deploy-pages.yml`.
+  `.github/workflows/main.yml`.
 - **Blank page:** Confirm `vite.config.ts` still contains `base: "./"`.
 - **Red workflow:** Open the failed job and inspect the first red build step.
