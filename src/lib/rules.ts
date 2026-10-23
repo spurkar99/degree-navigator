@@ -8,6 +8,10 @@ export type BasketId =
   | "open_elective"
   | "chemical_core"
   | "chemical_elective"
+  | "cse_core"
+  | "cse_theory"
+  | "cse_systems"
+  | "cse_elective"
   | "excluded"
   | "unresolved";
 
@@ -35,6 +39,10 @@ export const BASKET_LABELS: Record<BasketId, string> = {
   open_elective: "Open Elective",
   chemical_core: "Chemical Engineering Core",
   chemical_elective: "ChE Discipline Elective",
+  cse_core: "CSE Core",
+  cse_theory: "CSE Theory & Algorithms",
+  cse_systems: "CSE Systems",
+  cse_elective: "Other CSE Elective",
   excluded: "Does not count",
   unresolved: "I'm not sure",
 };
@@ -42,7 +50,7 @@ export const BASKET_LABELS: Record<BasketId, string> = {
 export const RULESET = {
   programme: "B.Tech Chemical Engineering",
   cohort: "2024–28",
-  version: "0.2.0",
+  version: "0.3.0",
   source: "Academic Affairs Advisory No. 13 (January 2025)",
 } as const;
 
@@ -123,3 +131,73 @@ export const FIXED_GROUPS = [
   { id: "hss", name: "HSS mandatory", codes: ["HS 151", "HS 191", "HS 192", "HS 201", "HS 221"] },
   { id: "core", name: "Chemical Engineering core", codes: CORE_ORDER },
 ];
+
+
+export type ProgrammeId = "chemical" | "cse";
+export type Requirement = { id: BasketId; name: string; required: number; note: string };
+export type FixedGroup = { id: string; name: string; codes: string[] };
+export type Programme = {
+  id: ProgrammeId;
+  name: string;
+  shortName: string;
+  cohort: string;
+  totalRequired: number;
+  requirements: readonly Requirement[];
+  fixedGroups: readonly FixedGroup[];
+  core: ReadonlySet<string>;
+  details: Record<string, { title: string; credits: number }>;
+  optionIds: BasketId[];
+};
+
+// Advisory 13 (January 2025), pp. 12–13; codes verified against p. 20.
+export const CSE_DETAILS: Record<string, { title: string; credits: number }> = {
+  "ES 242": { title: "Data Structures & Algorithms I", credits: 4 },
+  "ES 214": { title: "Discrete Mathematics", credits: 4 },
+  "ES 204": { title: "Digital Systems", credits: 4 },
+  "ES 336": { title: "Computer Organization & Architecture", credits: 4 },
+  "CS 201": { title: "Theory of Computing", credits: 4 },
+  "CS 202": { title: "Software Tools & Techniques for CSE", credits: 4 },
+  "CS 329": { title: "Foundations of AI: Multiagent Systems", credits: 4 },
+  "CS 330": { title: "Operating Systems", credits: 4 },
+  "CS 331": { title: "Computer Networks", credits: 4 },
+};
+export const CSE_CORE = new Set(Object.keys(CSE_DETAILS));
+export const CSE_THEORY = new Set(["ES 301", "CS 614", "CS 617", "CS 328"]);
+export const CSE_SYSTEMS = new Set([
+  "CS 327", "CS 332", "CS 431", "CS 433", "CS 434", "CS 435", "CS 615", "CS 616", "ES 668",
+]);
+export const CSE_ELECTIVES = new Set([
+  "ES 335", "ES 404", "ES 615", "ES 627", "ES 637", "ES 645", "ES 659", "ES 661",
+  "ES 666", "ES 667", "ES 669", "ES 670",
+]);
+export const CSE_LIMITED_ELECTIVE_CAP = 8;
+const commonRequirements: Requirement[] = REQUIREMENTS.filter(
+  (item) => item.id !== "chemical_core" && item.id !== "chemical_elective",
+);
+const cseRequirements: Requirement[] = [
+  ...commonRequirements,
+  { id: "cse_core", name: "CSE Core", required: 36, note: "Nine mandatory courses, 4 credits each" },
+  { id: "cse_theory", name: "CSE Theory & Algorithms", required: 8, note: "At least 8 credits; excess counts toward other CSE electives" },
+  { id: "cse_systems", name: "CSE Systems", required: 8, note: "At least 8 credits; excess counts toward other CSE electives" },
+  { id: "cse_elective", name: "Other CSE elective credits", required: 10, note: "26 elective credits overall, including the two 8-credit baskets" },
+];
+function optionIds(requirements: readonly Requirement[]): BasketId[] {
+  return [...requirements.map((item) => item.id), "excluded", "unresolved"];
+}
+export const PROGRAMMES: Record<ProgrammeId, Programme> = {
+  chemical: {
+    id: "chemical", name: "Chemical Engineering", shortName: "ChE", cohort: "2024–28",
+    totalRequired: TOTAL_REQUIRED, requirements: REQUIREMENTS, fixedGroups: FIXED_GROUPS,
+    core: CHEMICAL_CORE, details: DETAILS, optionIds: optionIds(REQUIREMENTS),
+  },
+  cse: {
+    id: "cse", name: "Computer Science and Engineering", shortName: "CSE", cohort: "2024–28",
+    totalRequired: TOTAL_REQUIRED, requirements: cseRequirements,
+    fixedGroups: [...FIXED_GROUPS.filter((group) => group.id !== "core"),
+      { id: "core", name: "Computer Science and Engineering core", codes: [...CSE_CORE] }],
+    core: CSE_CORE, details: { ...DETAILS, ...CSE_DETAILS }, optionIds: optionIds(cseRequirements),
+  },
+};
+export function getProgramme(id: ProgrammeId = "chemical") {
+  return PROGRAMMES[id];
+}

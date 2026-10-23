@@ -35,7 +35,7 @@ export function buildSuggestions(audit: ReturnTypeOfAudit, completedSemesters: n
     });
   });
 
-  const planningBaskets = new Set(["hss", "science", "open_project", "open_elective", "chemical_elective"]);
+  const planningBaskets = new Set(["hss", "science", "open_project", "open_elective", "chemical_elective", "cse_theory", "cse_systems", "cse_elective"]);
   audit.progress
     .filter((item) => item.remaining > 0 && planningBaskets.has(item.id))
     .forEach((item) => {
@@ -45,6 +45,19 @@ export function buildSuggestions(audit: ReturnTypeOfAudit, completedSemesters: n
         detail: `You have ${item.completed} of ${item.required} credits currently placed in this requirement.`,
       });
     });
+
+  audit.checks.filter((check) => check.remaining > 0).forEach((check) => {
+    suggestions.push({ priority: "Plan ahead", title: `Complete ${check.name}`,
+      detail: `${check.remaining} more credits are needed within this basket. These are part of the base requirements, not extra credits.` });
+  });
+  if (audit.limitedElectiveUnplaced > 0) {
+    suggestions.push({ priority: "Action needed", title: "Review the CSE online / project elective limit",
+      detail: `${audit.limitedElectiveUnplaced} credits exceed the combined 8-credit cap for online courses and CS projects as discipline electives. Review their placement; other degree requirements still apply.` });
+  }
+  if (audit.duplicateCourses.length) {
+    suggestions.push({ priority: "Action needed", title: "Review repeated course codes",
+      detail: "Repeated course codes were counted once. Check retakes and remove duplicate records before using this audit." });
+  }
 
   if (audit.pe < 4) {
     suggestions.push({

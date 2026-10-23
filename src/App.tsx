@@ -21,20 +21,15 @@ import {
   autoClassify,
   classificationSource,
   courseKey,
+  courseKind,
   type Classifications,
 } from "./lib/audit";
 import { normalizeCode, parseAll, parseSemester, type Course } from "./lib/parser";
-import { BASKET_LABELS, TOTAL_REQUIRED, type BasketId } from "./lib/rules";
-import { SAMPLE_TRANSCRIPT } from "./lib/sample";
+import { BASKET_LABELS, PROGRAMMES, getProgramme, type ProgrammeId, type BasketId } from "./lib/rules";
+import { SAMPLE_TRANSCRIPT, CSE_SAMPLE_TRANSCRIPT } from "./lib/sample";
 import { buildSuggestions } from "./lib/suggestions";
 
 type Stage = "profile" | "courses" | "review" | "audit";
-
-const OPTION_IDS: BasketId[] = [
-  "foundation", "institute", "mathematics", "hss", "science",
-  "open_project", "open_elective", "chemical_core", "chemical_elective",
-  "excluded", "unresolved",
-];
 
 function Steps({ stage }: { stage: Stage }) {
   const labels: { id: Stage; label: string }[] = [
@@ -72,6 +67,9 @@ function Bar({ value }: { value: number }) {
 }
 
 export default function App() {
+  const [programmeId, setProgrammeId] = useState<ProgrammeId>("chemical");
+  const programme = getProgramme(programmeId);
+  const totalRequired = programme.totalRequired;
   const [stage, setStage] = useState<Stage>("profile");
   const [studentName, setStudentName] = useState("");
   const [rollNumber, setRollNumber] = useState("");
@@ -84,10 +82,10 @@ export default function App() {
 
   const completed = Math.max(0, Number(current || 0) - 1);
   const semesters = Array.from({ length: completed }, (_, index) => index + 1);
-  const audit = useMemo(() => auditCourses(courses, choices), [courses, choices]);
+  const audit = useMemo(() => auditCourses(courses, choices, programmeId), [courses, choices, programmeId]);
   const suggestions = useMemo(() => buildSuggestions(audit, completed), [audit, completed]);
   const coursesNeedingAnswers = courses.filter(
-    (course) => autoClassify(course) === null && choices[courseKey(course)] === undefined,
+    (course) => autoClassify(course, programmeId) === null && choices[courseKey(course)] === undefined,
   );
 
   function continueToCourses() {
@@ -103,12 +101,13 @@ export default function App() {
     setStudentName("Example Student");
     setRollNumber("24110000");
     setCurrent("5");
-    setInputs(SAMPLE_TRANSCRIPT);
+    setInputs(programmeId === "cse" ? CSE_SAMPLE_TRANSCRIPT : SAMPLE_TRANSCRIPT);
+    setChoices({});
     setStage("courses");
   }
 
   function analyze() {
-    const parsed = parseAll(inputs);
+    const parsed = parseAll(Object.fromEntries(semesters.map((semester) => [semester, inputs[semester] ?? ""])));
     setCourses(parsed.courses);
     setWarnings(parsed.warnings);
     setChoices({});
@@ -171,7 +170,7 @@ export default function App() {
 
   async function exportTemplate() {
     const { downloadInputTemplate } = await import("./lib/excel");
-    await downloadInputTemplate();
+    await downloadInputTemplate(programmeId);
   }
 
   function reset() {
@@ -201,7 +200,7 @@ export default function App() {
             <span className="brand-icon"><GraduationCap size={22} /></span>
             <div><strong>Degree Navigator</strong><small>IIT Gandhinagar</small></div>
           </div>
-          <span className="cohort">ChE · 2024–28 · v0.2</span>
+          <span className="cohort">{programme.shortName} · {programme.cohort} · v0.3</span>
         </div>
       </header>
 
@@ -214,10 +213,20 @@ export default function App() {
               <p className="eyebrow">Start your audit</p>
               <h1>See exactly what you’ve finished—and what is left.</h1>
               <p className="lede">
-                Built for B.Tech Chemical Engineering students admitted in 2024.
+                Built for IITGN B.Tech students admitted in 2024, with Chemical Engineering and Computer Science and Engineering supported.
                 Your course tables and Excel files are processed in this browser.
               </p>
               <div className="panel form-panel">
+                <div className="major-field">
+                  <label htmlFor="major">Your major</label>
+                  <select id="major" value={programmeId} onChange={(event) => {
+                    setProgrammeId(event.target.value as ProgrammeId);
+                    setChoices({});
+                  }}>
+                    {Object.values(PROGRAMMES).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select>
+                  <p>2024 admission batch · Base B.Tech degree</p>
+                </div>
                 <div className="form-grid">
                   <label>
                     <span>Name <small>optional</small></span>
@@ -240,7 +249,7 @@ export default function App() {
                 <button className="button primary wide" disabled={!current || current === "1"} onClick={continueToCourses}>
                   Continue to course entry <ArrowRight size={18} />
                 </button>
-                <button className="button text wide" onClick={loadSample}>Load the four-semester example</button>
+                <button className="button text wide" onClick={loadSample}>Load the {programme.shortName} four-semester example</button>
                 <button className="button text wide" onClick={() => void exportTemplate()}>
                   <FileSpreadsheet size={18} /> Download blank Excel template
                 </button>
@@ -249,13 +258,15 @@ export default function App() {
             <aside className="summary-card">
               <div className="summary-head">
                 <span>Base B.Tech requirement</span>
-                <strong>170</strong>
+                <strong>{totalRequired}</strong>
                 <small>graduation credits</small>
               </div>
               <div className="summary-list">
                 {[
-                  ["Review before calculating", "Correct every parsed course and requirement basket"],
-                  ["Downloadable workbook", "Keep or share a six-sheet personalised audit"],
+                  programmeId === "cse"
+                    ? ["CSE requirements included", "36 core + 26 elective credits, including Theory & Algorithms and Systems"]
+                    : ["Review before calculating", "Correct every parsed course and requirement basket"],
+                  ["Downloadable workbook", "Your credits and semester plans on one worksheet"],
                   ["No silent guesses", "You confirm any course we cannot place"],
                 ].map(([title, note]) => (
                   <div className="summary-item" key={title}>
@@ -342,15 +353,16 @@ export default function App() {
               </div>
             )}
 
+            {programmeId === "cse" && <p className="suggestions-note">Mark online courses and projects in the Course type column. Together they can contribute at most 8 CSE discipline-elective credits. CS 299/399/499 projects are marked automatically.</p>}
             <div className="panel review-panel">
               <div className="review-table-wrap">
                 <table className="review-table">
-                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th><th>Source</th><th aria-label="Delete" /></tr></thead>
+                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th>{programmeId === "cse" && <th>Course type</th>}<th>Source</th><th aria-label="Delete" /></tr></thead>
                   <tbody>
                     {courses.map((course, index) => {
-                      const automatic = autoClassify(course);
+                      const automatic = autoClassify(course, programmeId);
                       const value = choices[courseKey(course)] ?? automatic ?? "";
-                      const source = classificationSource(course, choices);
+                      const source = classificationSource(course, choices, programmeId);
                       return (
                         <tr key={index} className={!value ? "needs-answer" : ""}>
                           <td><input className="cell-number" type="number" min="1" max="8" value={course.semester} onChange={(event) => updateCourse(index, { semester: Number(event.target.value) })} /></td>
@@ -360,9 +372,18 @@ export default function App() {
                           <td>
                             <select value={value} onChange={(event) => setClassification(course, event.target.value as BasketId | "")}>
                               <option value="">Choose category…</option>
-                              {OPTION_IDS.map((id) => <option key={id} value={id}>{BASKET_LABELS[id]}</option>)}
+                              {programme.optionIds.map((id) => <option key={id} value={id}>{BASKET_LABELS[id]}</option>)}
                             </select>
                           </td>
+                          {programmeId === "cse" && <td>
+                            <select aria-label={`Course type for ${course.code}`} value={courseKind(course)}
+                              disabled={/^CS (299|399|499)$/.test(course.code)}
+                              onChange={(event) => updateCourse(index, { kind: event.target.value as Course["kind"] })}>
+                              <option value="regular">Regular</option>
+                              <option value="online">Online</option>
+                              <option value="project">Project</option>
+                            </select>
+                          </td>}
                           <td><span className={`source-tag ${source === "Needs review" ? "pending" : ""}`}>{source}</span></td>
                           <td><button className="icon-button" onClick={() => removeCourse(index)} aria-label={`Delete ${course.code}`}><Trash2 size={17} /></button></td>
                         </tr>
@@ -392,8 +413,8 @@ export default function App() {
             <div className="section-head">
               <div>
                 <p className="eyebrow">Your degree audit</p>
-                <h1>{audit.allocated} of {TOTAL_REQUIRED} credits placed</h1>
-                <p>{courses.length} courses reviewed across {completed} completed semesters.</p>
+                <h1>{audit.allocated} of {totalRequired} credits placed</h1>
+                <p>{programme.name} · {courses.length} courses reviewed across {completed} completed semesters.</p>
               </div>
               <div className="head-actions">
                 <button className="button secondary" onClick={() => setStage("review")}><ArrowLeft size={18} /> Review courses</button>
@@ -415,10 +436,10 @@ export default function App() {
               <aside className="audit-side">
                 <div className="progress-card">
                   <div className="progress-title">
-                    <div><span>Graduation progress</span><strong>{Math.round(audit.allocated / TOTAL_REQUIRED * 100)}%</strong></div>
+                    <div><span>Graduation progress</span><strong>{Math.round(audit.allocated / totalRequired * 100)}%</strong></div>
                     <BookOpenCheck size={28} />
                   </div>
-                  <Bar value={audit.allocated / TOTAL_REQUIRED * 100} />
+                  <Bar value={audit.allocated / totalRequired * 100} />
                   <div className="progress-stat"><span>Remaining</span><strong>{audit.remaining} credits</strong></div>
                   {!!audit.pending && <div className="progress-stat"><span>Awaiting classification</span><strong>{audit.pending} credits</strong></div>}
                 </div>
@@ -430,13 +451,14 @@ export default function App() {
                   <Bar value={completed ? audit.viva / completed * 100 : 0} />
                 </div>
                 {!!audit.excludedCredits && (
-                  <div className="panel excluded"><strong>{audit.excludedCredits} short-course credit excluded.</strong> It remains on the transcript but does not count toward 170 credits.</div>
+                  <div className="panel excluded"><strong>{audit.excludedCredits} credits excluded.</strong> These records do not count toward the {totalRequired}-credit base degree.</div>
                 )}
               </aside>
 
               <div className="panel requirements">
                 <h2>Requirement breakdown</h2>
                 <p>Credits are counted once within the base degree.</p>
+                {programmeId === "cse" && <p>Theory & Algorithms and Systems each need at least 8 credits. Extra credits in either basket count toward the other 10 elective credits.</p>}
                 <div className="requirement-list">
                   {audit.progress.map((item) => (
                     <div className="requirement" key={item.id}>
@@ -449,6 +471,20 @@ export default function App() {
                   ))}
                 </div>
               </div>
+            </div>
+
+            <div className="panel checks-panel">
+              <h2>Checks within the credit requirements</h2>
+              <p>These checks are included in the 170 credits above.</p>
+              {audit.checks.map((check) => <div className="activity" key={check.id}>
+                <span>{check.name}</span><strong>{Math.min(check.completed, check.required)}/{check.required} cr {check.remaining === 0 ? "✓" : ""}</strong>
+              </div>)}
+              {programmeId === "cse" && <>
+                <div className="activity"><span>Online + CS project discipline-elective credits</span><strong>{audit.limitedElectiveCredits}/8 max</strong></div>
+                <p>{audit.limitedElectiveUnplaced > 0
+                  ? `${audit.limitedElectiveUnplaced} submitted elective credits are not placed because of the combined cap. Review their classification.`
+                  : "The combined 8-credit cap applies only when these courses count as CSE discipline electives."}</p>
+              </>}
             </div>
 
             <div className="panel suggestions-panel">
@@ -472,7 +508,7 @@ export default function App() {
                   <div className="missing-group" key={group.id}>
                     <h3>{group.name}</h3>
                     <div>{group.courses.map((course) => (
-                      <span key={course.code}><b>{course.code}</b> · {course.credits} cr</span>
+                      <span key={course.code} title={course.title}><b>{course.code}</b> · {course.credits} cr</span>
                     ))}</div>
                   </div>
                 ))}
@@ -480,7 +516,8 @@ export default function App() {
               <div className="panel method">
                 <h2>How this result was calculated</h2>
                 <p><CheckCircle2 size={17} /> You reviewed every parsed course before calculation.</p>
-                <p><CheckCircle2 size={17} /> CL 328 was recognized as a ChE discipline elective.</p>
+                <p><CheckCircle2 size={17} /> The {programme.name} rules were used for this audit.</p>
+                {programmeId === "cse" && <p><CheckCircle2 size={17} /> Theory & Algorithms, Systems and the combined online/project elective cap were checked.</p>}
                 <p><CheckCircle2 size={17} /> Uncertain courses were classified only after your answer.</p>
                 <small>
                   Planning aid based on Academic Affairs Advisory No. 13 (January 2025).

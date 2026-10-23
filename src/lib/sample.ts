@@ -41,3 +41,29 @@ export const SAMPLE_TRANSCRIPT: Record<number, string> = {
 | MS 491-XVI | Special Topics in Management: Lean Six Sigma | 4 |
 | PE 104 | Physical Education | 0 |`,
 };
+
+
+// Illustrative CSE history based on the sample academic path in Advisory 13,
+// p. 20. This is example data, not a student's transcript or course timetable.
+export const CSE_SAMPLE_TRANSCRIPT: Record<number, string> = {
+  1: SAMPLE_TRANSCRIPT[1].split("\n").filter((row) => !row.includes("SC 368")).join("\n"),
+  2: SAMPLE_TRANSCRIPT[2].split("\n").filter((row) => !row.includes("CL 201")).join("\n"),
+  3: `| GE 201 | General Education II | 2 |
+| HS 221 | Introduction to Philosophy | 4 |
+| MA 203 | Numerical Methods | 2 |
+| PH 201 | Introduction to Electrodynamics | 4 |
+| ES 243 | Biology for Engineers | 4 |
+| ES 214 | Discrete Mathematics | 4 |
+| ES 242 | Data Structures & Algorithms I | 4 |
+| IN 103 | Comprehensive Viva Voce | 0 |
+| PE 103 | Physical Education | 0 |`,
+  4: `| MS 408 | Financial Considerations in Engineering Decisions | 4 |
+| MA 205 | Calculus of Several Variables | 2 |
+| EH 612 | Ocean and Global Change | 4 |
+| ES 204 | Digital Systems | 4 |
+| CS 201 | Theory of Computing | 4 |
+| CS 327 | Compilers | 4 |
+| ES 301 | Data Structures & Algorithms II | 4 |
+| IN 104 | Comprehensive Viva Voce | 0 |
+| PE 104 | Physical Education | 0 |`,
+};
