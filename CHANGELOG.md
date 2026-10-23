@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+- Added Artificial Intelligence as a third major for the 2024–28 cohort.
+- Added its 172-credit target, eleven mandatory core courses, four-credit CSE elective minimum, and twenty-credit elective total.
+- Added the combined eight-credit online / CS-project elective cap for AI.
+- Flagged AI course-code / title conflicts in the advisory for explicit review.
+- Added AI examples and single-sheet Excel exports using AI-specific rules.
+- Kept Chemical Engineering and CSE audits on their existing 170-credit targets.
+
+## Single-sheet Excel update
 
 - Replaced the six-sheet Excel audit with one graduation-plan worksheet.
 - Combined credit requirements, activity checks, eight semester panels, missing courses and next steps.

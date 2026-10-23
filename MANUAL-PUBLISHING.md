@@ -52,15 +52,15 @@ GitHub also shows the exact URL on the repository's Pages settings screen.
 Upload or commit changed files to the `main` branch. The workflow publishes the
 new version automatically.
 
-For the v0.3 ZIP:
+For the v0.4 ZIP:
 
 1. Extract the ZIP on your computer.
 2. Open the extracted `degree-navigator` folder.
 3. In the repository, select **Add file → Upload files**.
-4. Drag the contents of the extracted folder into GitHub. Do not upload the ZIP itself.
+4. Drag the entire `src` folder into the upload area, then drag the other root files alongside it. The file chooser may select only files and miss folders. Do not upload the ZIP itself.
 5. Confirm that `src/App.tsx`, `src/lib/excel.ts`, `package.json`, and
-   `package-lock.json` are included in the pending upload.
-6. Commit with the message `Release Degree Navigator v0.3`.
+   `package-lock.json` are included in the pending upload. Also verify the new `src/lib/ai.test.ts` file is listed.
+6. Commit with the message `Release Degree Navigator v0.4`.
 7. Wait for **Deploy Degree Navigator** to turn green in the Actions tab.
 
 The existing Pages workflow does not need to be recreated for this update.

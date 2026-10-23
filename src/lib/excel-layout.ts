@@ -33,6 +33,7 @@ export const EXPORT_LABELS: Record<BasketId, string> = {
   science: "Science / BS", open_project: "Open project", open_elective: "Open elective",
   chemical_core: "ChE core", chemical_elective: "ChE elective", cse_core: "CSE core",
   cse_theory: "Theory & Algo.", cse_systems: "Systems", cse_elective: "CSE elective",
+  ai_core: "AI core", ai_cse: "AI CSE basket", ai_elective: "AI elective",
   excluded: "Not counted", unresolved: "Review",
 };
 
@@ -105,7 +106,7 @@ export function buildGraduationLayout(
     ["Excluded credits", audit.excludedCredits],
     ["Repeated course codes not counted again", audit.duplicateCourses.length],
   ];
-  if (audit.programmeId === "cse") checks.push(["Online + CS project elective cap", `${audit.limitedElectiveCredits} / 8 maximum`], ["Credits over that combined cap", audit.limitedElectiveUnplaced]);
+  if (audit.programme.disciplineElectiveCap !== undefined) checks.push(["Online + CS project elective cap", `${audit.limitedElectiveCredits} / ${audit.programme.disciplineElectiveCap} maximum`], ["Credits over that combined cap", audit.limitedElectiveUnplaced]);
   checks.forEach(([label, value], index) => { put(8 + index, 15, 23, label); put(8 + index, 24, 27, value, "number", "right"); });
   const missing = audit.missingGroups.flatMap((group) => group.courses);
   const missingLine = 8 + checks.length;
@@ -164,10 +165,11 @@ export function buildGraduationLayout(
     if (actionItems[index + 1]) put(row, 15, 27, actionItems[index + 1], "muted");
     row++;
   }
-  if (audit.limitedCourses.length) put(row++, 1, 27, `Online / project credits within the CSE elective cap: ${audit.limitedCourses.map((item) => `${item.course.code} ${item.eligible}/${item.course.credits}`).join("; ")}. Transcript credits above remain unchanged.`, "muted");
+  if (audit.limitedCourses.length) put(row++, 1, 27, `Online / project credits within the ${audit.programme.shortName} elective cap: ${audit.limitedCourses.map((item) => `${item.course.code} ${item.eligible}/${item.course.credits}`).join("; ")}. Transcript credits above remain unchanged.`, "muted");
   if (audit.programmeId === "cse") put(row++, 1, 27, "CSE electives: at least 8 Theory & Algorithms + 8 Systems within 26 total. Surplus from either basket can meet the other 10 elective credits. Online courses and CS projects share an 8-credit discipline-elective cap.", "muted");
+  if (audit.programmeId === "ai") put(row++, 1, 27, "AI electives: at least 4 CSE-basket credits within 20 total. Surplus CSE-basket credits can meet the other 16. Online courses and CS projects share an 8-credit AI discipline-elective cap. Confirm inconsistent or renamed course codes.", "muted");
   put(row++, 1, 27, "Completed credits are the downloaded audit snapshot. Yellow future-semester cells are editable; planned totals are raw credits, not approved graduation credits. Re-run the app to audit changed coursework.", "muted");
-  put(row++, 1, 27, `Source: ${RULESET.source}${audit.programmeId === "cse" ? ", CSE requirements pp. 12–13 and 20" : ""}. Base B.Tech only. Confirm substitutions, course availability and special approvals with your faculty advisor.`, "muted");
+  put(row++, 1, 27, `Source: ${RULESET.source}${audit.programmeId === "cse" ? ", CSE requirements pp. 12–13 and 20" : audit.programmeId === "ai" ? ", AI requirements pp. 10–11 and 17" : ""}. Base B.Tech only. Confirm substitutions, course availability and special approvals with your faculty advisor.`, "muted");
 
   return { name: "Graduation plan", cells, widths, heights, lastRow: row - 1,
     plannedCreditRanges, plannedCategoryRanges, remainingCells,

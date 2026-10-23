@@ -10,9 +10,9 @@ const course = (code: string, credits = 4, kind?: Course["kind"]): Course => ({ 
 const progress = (audit: ReturnType<typeof auditCourses>, id: string) => audit.progress.find((item) => item.id === id)!;
 
 describe("Computer Science and Engineering 2024–28", () => {
-  it("uses a 170-credit distribution for each major", () => {
+  it("uses each major's own credit distribution", () => {
     for (const programme of Object.values(PROGRAMMES)) {
-      expect(programme.requirements.reduce((sum, item) => sum + item.required, 0)).toBe(170);
+      expect(programme.requirements.reduce((sum, item) => sum + item.required, 0)).toBe(programme.totalRequired);
     }
     expect(PROGRAMMES.cse.core.size).toBe(9);
     expect(Object.values(CSE_DETAILS).reduce((sum, item) => sum + item.credits, 0)).toBe(36);

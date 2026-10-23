@@ -1,5 +1,6 @@
 import {
-  CSE_ELECTIVES, CSE_LIMITED_ELECTIVE_CAP, CSE_SYSTEMS, CSE_THEORY,
+  AI_AMBIGUOUS_BASKET_CODES, AI_CSE_BASKET, AI_ELECTIVES,
+  CSE_ELECTIVES, CSE_SYSTEMS, CSE_THEORY,
   HSS_MANDATORY, INSTITUTE, KNOWN_CHEMICAL_ELECTIVES, MATHEMATICS, SCIENCE,
   getProgramme, type BasketId, type ProgrammeId,
 } from "./rules";
@@ -13,8 +14,18 @@ export function courseKind(course: Course): NonNullable<Course["kind"]> {
   return course.kind ?? "regular";
 }
 
+export function courseReviewReason(course: Course, programmeId: ProgrammeId): string | null {
+  if (programmeId !== "ai") return null;
+  const ambiguous = AI_AMBIGUOUS_BASKET_CODES[course.code];
+  if (ambiguous && !ambiguous.matches.test(course.title)) {
+    return `The AI advisory lists ${course.code} as ${ambiguous.title}. The submitted title differs. Confirm the current code and approved basket before choosing its category.`;
+  }
+  return null;
+}
+
 export function autoClassify(course: Course, programmeId: ProgrammeId = "chemical"): BasketId | null {
   const programme = getProgramme(programmeId);
+  if (courseReviewReason(course, programmeId)) return null;
   if (course.code.startsWith("SC ")) return "excluded";
   if (course.code === "FP 100") return "foundation";
   if (course.code.startsWith("PE ") || course.code.startsWith("IN ")) return "excluded";
@@ -22,13 +33,17 @@ export function autoClassify(course: Course, programmeId: ProgrammeId = "chemica
   if (MATHEMATICS.has(course.code)) return "mathematics";
   if (HSS_MANDATORY.has(course.code) || /^(GE|HS|MS) /.test(course.code)) return "hss";
   if (SCIENCE.has(course.code)) return "science";
-  if (programme.core.has(course.code)) return programmeId === "cse" ? "cse_core" : "chemical_core";
+  if (programme.core.has(course.code)) return programme.coreBasket;
   if (programmeId === "chemical" && KNOWN_CHEMICAL_ELECTIVES.has(course.code)) return "chemical_elective";
   if (programmeId === "cse") {
     if (CSE_THEORY.has(course.code)) return "cse_theory";
     if (CSE_SYSTEMS.has(course.code)) return "cse_systems";
     // The advisory permits all CS electives. Unlisted non-CS courses need review.
     if (CSE_ELECTIVES.has(course.code) || course.code.startsWith("CS ")) return "cse_elective";
+  }
+  if (programmeId === "ai") {
+    if (AI_CSE_BASKET.has(course.code)) return "ai_cse";
+    if (AI_ELECTIVES.has(course.code) || /^CS (299|399|499)$/.test(course.code)) return "ai_elective";
   }
   return null;
 }
@@ -66,10 +81,10 @@ export function auditCourses(courses: Course[], choices: Classifications, progra
     if (basket === "unresolved") { unresolved.push(course); return; }
     if (basket === "excluded") { excluded.push(course); return; }
     let credits = course.credits;
-    const cseElective = ["cse_theory", "cse_systems", "cse_elective"].includes(basket);
-    if (programmeId === "cse" && cseElective && courseKind(course) !== "regular") {
+    const cappedElective = programme.cappedElectiveBaskets?.includes(basket);
+    if (cappedElective && programme.disciplineElectiveCap !== undefined && courseKind(course) !== "regular") {
       limitedElectiveSubmitted += credits;
-      const eligible = Math.min(credits, Math.max(0, CSE_LIMITED_ELECTIVE_CAP - limitedElectiveCredits));
+      const eligible = Math.min(credits, Math.max(0, programme.disciplineElectiveCap - limitedElectiveCredits));
       limitedElectiveCredits += eligible;
       limitedCourses.push({ course, eligible, notPlaced: credits - eligible });
       credits = eligible;
@@ -83,6 +98,7 @@ export function auditCourses(courses: Course[], choices: Classifications, progra
   if (programmeId === "cse") {
     totals.cse_elective += Math.max(0, totals.cse_theory - 8) + Math.max(0, totals.cse_systems - 8);
   }
+  if (programmeId === "ai") totals.ai_elective += Math.max(0, totals.ai_cse - 4);
   const progress = programme.requirements.map((requirement) => {
     const completed = Math.min(totals[requirement.id], requirement.required);
     return { ...requirement, completed, remaining: requirement.required - completed };
@@ -90,8 +106,7 @@ export function auditCourses(courses: Course[], choices: Classifications, progra
   const missingGroups = programme.fixedGroups.map((group) => ({
     ...group,
     courses: group.codes.filter((code) => !counted.some((entry) =>
-      entry.course.code === code && entry.basket === (group.id === "core"
-        ? programmeId === "cse" ? "cse_core" : "chemical_core" : group.id)
+      entry.course.code === code && entry.basket === (group.id === "core" ? programme.coreBasket : group.id)
       && entry.credits >= programme.details[code].credits,
     )).map((code) => ({ code, ...programme.details[code] })),
   })).filter((group) => group.courses.length);

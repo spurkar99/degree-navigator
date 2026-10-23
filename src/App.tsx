@@ -22,11 +22,12 @@ import {
   classificationSource,
   courseKey,
   courseKind,
+  courseReviewReason,
   type Classifications,
 } from "./lib/audit";
 import { normalizeCode, parseAll, parseSemester, type Course } from "./lib/parser";
 import { BASKET_LABELS, PROGRAMMES, getProgramme, type ProgrammeId, type BasketId } from "./lib/rules";
-import { SAMPLE_TRANSCRIPT, CSE_SAMPLE_TRANSCRIPT } from "./lib/sample";
+import { SAMPLE_TRANSCRIPTS } from "./lib/sample";
 import { buildSuggestions } from "./lib/suggestions";
 
 type Stage = "profile" | "courses" | "review" | "audit";
@@ -70,6 +71,7 @@ export default function App() {
   const [programmeId, setProgrammeId] = useState<ProgrammeId>("chemical");
   const programme = getProgramme(programmeId);
   const totalRequired = programme.totalRequired;
+  const hasElectiveCap = programme.disciplineElectiveCap !== undefined;
   const [stage, setStage] = useState<Stage>("profile");
   const [studentName, setStudentName] = useState("");
   const [rollNumber, setRollNumber] = useState("");
@@ -88,6 +90,8 @@ export default function App() {
     (course) => autoClassify(course, programmeId) === null && choices[courseKey(course)] === undefined,
   );
 
+  const reviewNotes = courses.map((course) => ({ code: course.code, reason: courseReviewReason(course, programmeId) })).filter((item) => item.reason);
+
   function continueToCourses() {
     const next = { ...inputs };
     semesters.forEach((semester) => {
@@ -101,7 +105,7 @@ export default function App() {
     setStudentName("Example Student");
     setRollNumber("24110000");
     setCurrent("5");
-    setInputs(programmeId === "cse" ? CSE_SAMPLE_TRANSCRIPT : SAMPLE_TRANSCRIPT);
+    setInputs(SAMPLE_TRANSCRIPTS[programmeId]);
     setChoices({});
     setStage("courses");
   }
@@ -200,7 +204,7 @@ export default function App() {
             <span className="brand-icon"><GraduationCap size={22} /></span>
             <div><strong>Degree Navigator</strong><small>IIT Gandhinagar</small></div>
           </div>
-          <span className="cohort">{programme.shortName} · {programme.cohort} · v0.3</span>
+          <span className="cohort">{programme.shortName} · {programme.cohort} · v0.4</span>
         </div>
       </header>
 
@@ -213,7 +217,7 @@ export default function App() {
               <p className="eyebrow">Start your audit</p>
               <h1>See exactly what you’ve finished—and what is left.</h1>
               <p className="lede">
-                Built for IITGN B.Tech students admitted in 2024, with Chemical Engineering and Computer Science and Engineering supported.
+                For IITGN B.Tech students admitted in 2024. Choose your major below.
                 Your course tables and Excel files are processed in this browser.
               </p>
               <div className="panel form-panel">
@@ -263,7 +267,9 @@ export default function App() {
               </div>
               <div className="summary-list">
                 {[
-                  programmeId === "cse"
+                  programmeId === "ai"
+                    ? ["AI requirements included", "44 core + 20 elective credits, including at least 4 credits from the CSE basket"]
+                    : programmeId === "cse"
                     ? ["CSE requirements included", "36 core + 26 elective credits, including Theory & Algorithms and Systems"]
                     : ["Review before calculating", "Correct every parsed course and requirement basket"],
                   ["Downloadable workbook", "Your credits and semester plans on one worksheet"],
@@ -353,11 +359,17 @@ export default function App() {
               </div>
             )}
 
-            {programmeId === "cse" && <p className="suggestions-note">Mark online courses and projects in the Course type column. Together they can contribute at most 8 CSE discipline-elective credits. CS 299/399/499 projects are marked automatically.</p>}
+            {hasElectiveCap && <p className="suggestions-note">Mark online courses and projects in the Course type column. Together they can contribute at most {programme.disciplineElectiveCap} {programme.shortName} discipline-elective credits. CS 299/399/499 projects are marked automatically.</p>}
+            {!!reviewNotes.length && <div className="warning">
+              <AlertTriangle size={20} />
+              <div><strong>Confirm the AI course codes</strong>
+                {reviewNotes.map((item) => <p key={item.code}>{item.reason}</p>)}
+              </div>
+            </div>}
             <div className="panel review-panel">
               <div className="review-table-wrap">
                 <table className="review-table">
-                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th>{programmeId === "cse" && <th>Course type</th>}<th>Source</th><th aria-label="Delete" /></tr></thead>
+                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th>{hasElectiveCap && <th>Course type</th>}<th>Source</th><th aria-label="Delete" /></tr></thead>
                   <tbody>
                     {courses.map((course, index) => {
                       const automatic = autoClassify(course, programmeId);
@@ -375,7 +387,7 @@ export default function App() {
                               {programme.optionIds.map((id) => <option key={id} value={id}>{BASKET_LABELS[id]}</option>)}
                             </select>
                           </td>
-                          {programmeId === "cse" && <td>
+                          {hasElectiveCap && <td>
                             <select aria-label={`Course type for ${course.code}`} value={courseKind(course)}
                               disabled={/^CS (299|399|499)$/.test(course.code)}
                               onChange={(event) => updateCourse(index, { kind: event.target.value as Course["kind"] })}>
@@ -459,6 +471,7 @@ export default function App() {
                 <h2>Requirement breakdown</h2>
                 <p>Credits are counted once within the base degree.</p>
                 {programmeId === "cse" && <p>Theory & Algorithms and Systems each need at least 8 credits. Extra credits in either basket count toward the other 10 elective credits.</p>}
+                {programmeId === "ai" && <p>At least 4 of the 20 AI elective credits must come from the CSE basket. Extra CSE-basket credits count toward the other 16 elective credits.</p>}
                 <div className="requirement-list">
                   {audit.progress.map((item) => (
                     <div className="requirement" key={item.id}>
@@ -475,15 +488,15 @@ export default function App() {
 
             <div className="panel checks-panel">
               <h2>Checks within the credit requirements</h2>
-              <p>These checks are included in the 170 credits above.</p>
+              <p>These checks are included in the {totalRequired} credits above.</p>
               {audit.checks.map((check) => <div className="activity" key={check.id}>
                 <span>{check.name}</span><strong>{Math.min(check.completed, check.required)}/{check.required} cr {check.remaining === 0 ? "✓" : ""}</strong>
               </div>)}
-              {programmeId === "cse" && <>
-                <div className="activity"><span>Online + CS project discipline-elective credits</span><strong>{audit.limitedElectiveCredits}/8 max</strong></div>
+              {hasElectiveCap && <>
+                <div className="activity"><span>Online + CS project discipline-elective credits</span><strong>{audit.limitedElectiveCredits}/{programme.disciplineElectiveCap} max</strong></div>
                 <p>{audit.limitedElectiveUnplaced > 0
                   ? `${audit.limitedElectiveUnplaced} submitted elective credits are not placed because of the combined cap. Review their classification.`
-                  : "The combined 8-credit cap applies only when these courses count as CSE discipline electives."}</p>
+                  : `The combined ${programme.disciplineElectiveCap}-credit cap applies only when these courses count as ${programme.shortName} discipline electives.`}</p>
               </>}
             </div>
 
@@ -518,6 +531,7 @@ export default function App() {
                 <p><CheckCircle2 size={17} /> You reviewed every parsed course before calculation.</p>
                 <p><CheckCircle2 size={17} /> The {programme.name} rules were used for this audit.</p>
                 {programmeId === "cse" && <p><CheckCircle2 size={17} /> Theory & Algorithms, Systems and the combined online/project elective cap were checked.</p>}
+                {programmeId === "ai" && <p><CheckCircle2 size={17} /> The CSE basket minimum and combined online/project elective cap were checked.</p>}
                 <p><CheckCircle2 size={17} /> Uncertain courses were classified only after your answer.</p>
                 <small>
                   Planning aid based on Academic Affairs Advisory No. 13 (January 2025).

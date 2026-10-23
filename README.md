@@ -6,6 +6,7 @@ A browser-based graduation audit for IIT Gandhinagar B.Tech students admitted in
 
 - Chemical Engineering: 170 credits, including 42 discipline-core and 20 discipline-elective credits.
 - Computer Science and Engineering: 170 credits, including 36 discipline-core and 26 discipline-elective credits.
+- Artificial Intelligence: 172 credits, including 44 discipline-core and 20 discipline-elective credits.
 
 Select the major on the profile screen. Course classification, fixed-course checks,
 planning suggestions, examples, and Excel exports use that programme's rules.
@@ -33,6 +34,25 @@ sample academic path.
 Lists reflect the supplied January 2025 advisory, not a live course catalogue.
 Future course availability, prerequisites, substitutions and special approvals
 are not inferred.
+
+## AI requirements
+
+Based on Advisory 13 (January 2025), pp. 10–11 and the sample path on p. 17:
+
+- Eleven compulsory core courses of 4 credits each (44 credits).
+- Twenty discipline-elective credits, including at least 4 from the AI CSE basket.
+- Surplus CSE-basket credits can meet the remaining 16 AI elective credits once.
+- Online courses and CS 299/399/499 projects share an 8-credit cap toward AI
+  discipline electives; this cap is separate from the Open Project requirement.
+- Only electives explicitly identified in the AI advisory are automatically placed.
+  Unlisted courses and entries with TBD codes need a confirmed classification.
+
+The advisory uses inconsistent course codes across its AI and CSE sections:
+AI lists CS 301 as Operating Systems, CS 432 as Databases and CS 433 as Computer
+Networks; the CSE section uses different codes for these courses. The AI review
+screen flags mismatching titles for those codes and leaves them unresolved until
+the student confirms the approved placement. Updated codes are not silently
+assumed equivalent. This is an AI **major**, not an AI minor.
 
 ## Features
 
@@ -70,12 +90,13 @@ npm test
 npm run build
 ```
 
-Tests cover both majors, their four-semester examples (100 eligible credits out
-of 170), programme isolation, basket surplus, elective minimums, the combined
+Tests cover all three majors, their four-semester examples (100 eligible credits;
+170 required for ChE/CSE and 172 for AI), programme isolation, basket surplus,
+elective minimums, code/title conflicts, the combined
 online/project cap, duplicate records, shared subrequirements, and Excel exports.
 The Chemical Engineering example requires ES 418 to be confirmed as an open elective.
-The CSE example is illustrative data drawn from the advisory's sample academic
-path; it is not a real transcript or a promise of future course offerings.
+The CSE and AI examples are illustrative data drawn from the advisory's sample academic
+paths; it is not a real transcript or a promise of future course offerings.
 
 ## Accuracy notice
 
@@ -83,4 +104,4 @@ This is a planning aid based on Academic Affairs Advisory No. 13 (January 2025).
 Students enter completed coursework; the app does not verify grades or approvals.
 Confirm unusual approvals, substitutions and exceptions with your faculty advisor
 or Academic Affairs. External-exposure substitutions and institution-wide project
-credit limits beyond the CSE elective cap are not automated in this version.
+credit limits beyond the CSE / AI elective caps are not automated in this version.

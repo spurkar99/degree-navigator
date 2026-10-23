@@ -67,3 +67,29 @@ export const CSE_SAMPLE_TRANSCRIPT: Record<number, string> = {
 | IN 104 | Comprehensive Viva Voce | 0 |
 | PE 104 | Physical Education | 0 |`,
 };
+
+// Illustrative AI path from Advisory 13, p. 17, with Science / HSS
+// examples chosen only from the existing approved categories.
+export const AI_SAMPLE_TRANSCRIPT: Record<number, string> = {
+  1: CSE_SAMPLE_TRANSCRIPT[1],
+  2: CSE_SAMPLE_TRANSCRIPT[2],
+  3: CSE_SAMPLE_TRANSCRIPT[3].replace(
+    "| ES 214 | Discrete Mathematics | 4 |",
+    "| ES 244 | Signals, Systems & Random Processes | 4 |",
+  ),
+  4: `| MS 408 | Financial Considerations in Engineering Decisions | 4 |
+| MA 205 | Calculus of Several Variables | 2 |
+| EH 612 | Ocean and Global Change | 4 |
+| ES 204 | Digital Systems | 4 |
+| ES 245 | Control Systems | 4 |
+| CS 201 | Theory of Computing | 4 |
+| CS 303 | Mathematical Foundations for AI | 4 |
+| IN 104 | Comprehensive Viva Voce | 0 |
+| PE 104 | Physical Education | 0 |`,
+};
+
+export const SAMPLE_TRANSCRIPTS = {
+  chemical: SAMPLE_TRANSCRIPT,
+  cse: CSE_SAMPLE_TRANSCRIPT,
+  ai: AI_SAMPLE_TRANSCRIPT,
+};
