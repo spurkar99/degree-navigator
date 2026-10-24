@@ -7,6 +7,11 @@ A browser-based graduation audit for IIT Gandhinagar B.Tech students admitted in
 - Chemical Engineering: 170 credits, including 42 discipline-core and 20 discipline-elective credits.
 - Computer Science and Engineering: 170 credits, including 36 discipline-core and 26 discipline-elective credits.
 - Artificial Intelligence: 172 credits, including 44 discipline-core and 20 discipline-elective credits.
+- Civil Engineering: 170 credits, including 42 core, 12 Design / Applications and 8 General CE elective credits.
+- Electrical Engineering: 170 credits, including 42 core and 20 discipline-elective credits.
+- Integrated Circuit Design and Technology (ICDT): 172 credits, including 44 core and 20 discipline-elective credits.
+- Materials Engineering: 170 credits, including 42 core and 20 discipline-elective credits.
+- Mechanical Engineering: 172 credits, including 44 core and 20 discipline-elective credits.
 
 Select the major on the profile screen. Course classification, fixed-course checks,
 planning suggestions, examples, and Excel exports use that programme's rules.
@@ -54,6 +59,19 @@ screen flags mismatching titles for those codes and leaves them unresolved until
 the student confirms the approved placement. Updated codes are not silently
 assumed equivalent. This is an AI **major**, not an AI minor.
 
+## Other branch rules
+
+The five remaining majors use Advisory 13 (January 2025), pp. 9, 12–16 and sample paths on pp. 19, 21–24.
+
+- Civil: Design / Applications and General CE elective credits remain separate. Only listed codes are auto-classified; new or TBD-coded electives require an approved manual classification.
+- Electrical: all EE electives and the explicitly listed non-EE electives are recognized. Projects and online courses contribute zero discipline-elective credits. PH 201 is required within Science.
+- ICDT: only the three coded electives in the advisory are auto-classified. Several core codes are unspecified; these requirements match exact full titles (including the advisory's alternate titles), never fabricated codes. Missing courses show their title and “code pending”. A different title requires confirmation of the approved course name before it can satisfy the fixed requirement. PH 510 or Physics of Materials is required within Science.
+- Materials: all MSE electives are recognized; MSE 299/399/499 and other explicitly marked project electives share an eight-credit project allowance. One complete course from PH 201, PH 202 or CH 203 must count in Science.
+- Mechanical: all ME electives and the explicitly listed non-ME electives are recognized. Online courses contribute zero discipline-elective credits. Project electives share an eight-credit allowance. One specified Physics / Chemistry course must count in Science.
+- Every major: independent 299/399/499 project codes are detected automatically. Mark other projects in the review table. Up to 16 project credits may count across the degree, including the Open Project; only credits that fill a requirement consume this allowance. Processing follows semester/code order and does not optimize course placement.
+
+ICDT example codes EE 225, EE 226, EE 227 and ES 339 were verified by title and credits in [IITGN's official course list](https://iitgn.ac.in/academics/courses) in October 2026. This does not assume equivalence for renamed courses such as IC Fabrication & Manufacturing. Unknown codes or electives remain for review.
+
 ## Features
 
 - One course-paste field per completed semester; Markdown-table and plain-row parsing.
@@ -90,18 +108,13 @@ npm test
 npm run build
 ```
 
-Tests cover all three majors, their four-semester examples (100 eligible credits;
-170 required for ChE/CSE and 172 for AI), programme isolation, basket surplus,
-elective minimums, code/title conflicts, the combined
-online/project cap, duplicate records, shared subrequirements, and Excel exports.
-The Chemical Engineering example requires ES 418 to be confirmed as an open elective.
-The CSE and AI examples are illustrative data drawn from the advisory's sample academic
-paths; it is not a real transcript or a promise of future course offerings.
+Tests cover all eight majors, their core lists and totals, four-semester examples, programme-specific classification, complete-degree fixtures, science choices, elective restrictions, project limits and single-sheet Excel exports.
+
+Examples are illustrative course histories, not prerequisites, recommendations or a timetable. Example placed credits after four semesters are ChE 100 (after the ES 418 review), CSE 100, AI 100, Civil 100, Electrical 99, ICDT 96, Materials 100 and Mechanical 97. ICDT leaves the unnumbered IC Fabrication & Manufacturing course for later rather than inventing its code.
 
 ## Accuracy notice
 
 This is a planning aid based on Academic Affairs Advisory No. 13 (January 2025).
 Students enter completed coursework; the app does not verify grades or approvals.
 Confirm unusual approvals, substitutions and exceptions with your faculty advisor
-or Academic Affairs. External-exposure substitutions and institution-wide project
-credit limits beyond the CSE / AI elective caps are not automated in this version.
+or Academic Affairs. External-exposure substitutions are not automated. Course-type and approved-placement declarations must be accurate for the project and elective limits to be reliable. The audit uses the supplied January 2025 advisory, rather than assuming later curriculum changes apply to this cohort.

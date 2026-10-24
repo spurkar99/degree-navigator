@@ -15,6 +15,9 @@ export type BasketId =
   | "ai_core"
   | "ai_cse"
   | "ai_elective"
+  | "discipline_core"
+  | "discipline_elective"
+  | "civil_design"
   | "excluded"
   | "unresolved";
 
@@ -49,6 +52,9 @@ export const BASKET_LABELS: Record<BasketId, string> = {
   ai_core: "AI Core",
   ai_cse: "AI CSE Basket",
   ai_elective: "Other AI Elective",
+  discipline_core: "Discipline Core",
+  discipline_elective: "Discipline Elective",
+  civil_design: "CE Design / Applications",
   excluded: "Does not count",
   unresolved: "I'm not sure",
 };
@@ -56,7 +62,7 @@ export const BASKET_LABELS: Record<BasketId, string> = {
 export const RULESET = {
   programme: "B.Tech Chemical Engineering",
   cohort: "2024–28",
-  version: "0.4.0",
+  version: "0.5.0",
   source: "Academic Affairs Advisory No. 13 (January 2025)",
 } as const;
 
@@ -139,7 +145,8 @@ export const FIXED_GROUPS = [
 ];
 
 
-export type ProgrammeId = "chemical" | "cse" | "ai";
+export type ProgrammeId = "chemical" | "cse" | "ai" | "civil" | "electrical" | "icdt" | "materials" | "mechanical";
+export type CourseDetails = { title: string; credits: number; codePending?: boolean };
 export type Requirement = { id: BasketId; name: string; required: number; note: string };
 export type FixedGroup = { id: string; name: string; codes: string[] };
 export type Programme = {
@@ -154,7 +161,16 @@ export type Programme = {
   coreBasket: BasketId;
   cappedElectiveBaskets?: BasketId[];
   disciplineElectiveCap?: number;
-  details: Record<string, { title: string; credits: number }>;
+  limitedKinds?: ("online" | "project")[];
+  prohibitedElectiveKinds?: ("online" | "project")[];
+  electivePrefix?: string;
+  electives?: ReadonlySet<string>;
+  electiveRule?: string;
+  capLabel?: string;
+  sourcePages?: string;
+  scienceRule?: { name: string; codes: string[]; titles?: string[] };
+  coreTitleAliases?: Record<string, string[]>;
+  details: Record<string, CourseDetails>;
   optionIds: BasketId[];
 };
 
@@ -223,6 +239,105 @@ const aiRequirements: Requirement[] = [
 function optionIds(requirements: readonly Requirement[]): BasketId[] {
   return [...requirements.map((item) => item.id), "excluded", "unresolved"];
 }
+
+// January 2025 Advisory 13, pp. 12–16; codes from sample paths pp. 19, 21–24.
+export const CIVIL_DETAILS: Record<string, CourseDetails> = {
+  "ES 221": { title: "Mechanics of Solids", credits: 4 },
+  "CE 201": { title: "Earth Materials & Processes", credits: 2 },
+  "CE 203": { title: "Geospatial Engineering", credits: 3 },
+  "CE 302": { title: "Structural Analysis", credits: 4 },
+  "ES 212": { title: "Fluid Mechanics", credits: 4 },
+  "CE 202": { title: "Sustainability & Environment", credits: 3 },
+  "CE 310": { title: "Hydrology & Hydraulics", credits: 4 },
+  "CE 312": { title: "Design of Steel Structures", credits: 4 },
+  "CE 301": { title: "Soil Mechanics", credits: 5 },
+  "CE 311": { title: "Design of Reinforced Concrete Structures", credits: 5 },
+  "CE 403": { title: "Construction Technology & Management", credits: 4 },
+};
+export const CIVIL_DESIGN = new Set(["CE 313", "CE 314", "CE 404"]);
+export const CIVIL_ELECTIVES = new Set(["CE 307", "CE 637", "ES 404"]);
+export const ELECTRICAL_DETAILS: Record<string, CourseDetails> = {
+  "ES 244": { title: "Signals, Systems & Random Processes", credits: 4 },
+  "EE 221": { title: "Electronic Devices", credits: 3 },
+  "EE 223": { title: "Electrical Machines", credits: 4 },
+  "EE 224": { title: "Power Systems", credits: 4 },
+  "ES 245": { title: "Control Systems", credits: 4 },
+  "ES 204": { title: "Digital Systems", credits: 4 },
+  "EE 312": { title: "Engineering Electromagnetics", credits: 4 },
+  "EE 322": { title: "Analog & Mixed Signal Circuits", credits: 4 },
+  "EE 333": { title: "Power Electronics", credits: 4 },
+  "EE 323": { title: "Digital Signal Processing", credits: 4 },
+  "EE 313": { title: "Communication Systems", credits: 3 },
+};
+export const ELECTRICAL_ELECTIVES = new Set([
+  "ES 215", "ES 333", "ES 412", "ES 414", "ES 416", "ES 408", "ES 612", "ES 613", "ES 615", "ES 616",
+  "ES 625", "ES 626", "ES 637", "ES 641", "ES 642", "ES 655", "ES 656", "ES 657", "ES 659", "ES 662",
+  "ES 663", "ES 665", "ES 666", "ES 667", "ES 668", "ES 669", "ES 670", "PH 643",
+]);
+// Internal requirement keys are not course codes. The advisory leaves these
+// ICDT codes unspecified; they are matched by exact normalized course title.
+export const ICDT_DETAILS: Record<string, CourseDetails> = {
+  "icdt-unveiling": { title: "Unveiling the Semiconductor World", credits: 2, codePending: true },
+  "ES 244": ELECTRICAL_DETAILS["ES 244"],
+  "ES 336": CSE_DETAILS["ES 336"],
+  "ES 204": CSE_DETAILS["ES 204"],
+  "EE 322": ELECTRICAL_DETAILS["EE 322"],
+  "icdt-cmos": { title: "CMOS Circuit Design", credits: 4, codePending: true },
+  "icdt-devices": { title: "Semiconductor Devices", credits: 4, codePending: true },
+  "icdt-characterization": { title: "Semiconductor Material & Device Characterization", credits: 4, codePending: true },
+  "icdt-fabrication": { title: "IC Fabrication & Manufacturing", credits: 4, codePending: true },
+  "icdt-thin-film": { title: "Thin Film Science & Vacuum Technology", credits: 4, codePending: true },
+  "icdt-packaging": { title: "Semiconductor Package Assembly & Manufacturing", credits: 4, codePending: true },
+  "icdt-lab": { title: "IC Fabrication Lab", credits: 2, codePending: true },
+};
+export const ICDT_ELECTIVES = new Set(["EE 651", "EE 660", "ES 672"]);
+export const MATERIALS_DETAILS: Record<string, CourseDetails> = {
+  "MSE 207": { title: "Structure of Materials", credits: 4 },
+  "MSE 202": { title: "Materials Thermodynamics", credits: 4 },
+  "MSE 204": { title: "Transport Phenomena in Materials Engineering", credits: 4 },
+  "MSE 210": { title: "Microstructural Engineering", credits: 4 },
+  "MSE 206": { title: "Physics of Materials", credits: 4 },
+  "MSE 203": { title: "Integrated Computational Materials Engineering", credits: 4 },
+  "MSE 205": { title: "Mechanical Behaviour of Materials", credits: 4 },
+  "MSE 313": { title: "Polymers, Ceramics and Composites", credits: 4 },
+  "MSE 307": { title: "Materials Processing", credits: 4 },
+  "MSE 302": { title: "Corrosion & Degradation of Materials", credits: 4 },
+  "MSE 312": { title: "Materials & Environment", credits: 2 },
+};
+export const MECHANICAL_DETAILS: Record<string, CourseDetails> = {
+  "ES 211": { title: "Thermodynamics", credits: 3 },
+  "ME 206": { title: "Statics & Dynamics", credits: 4 },
+  "ME 207": { title: "Fluid Dynamics", credits: 5 },
+  "ES 221": CIVIL_DETAILS["ES 221"],
+  "ME 209": { title: "Principles of Manufacturing Processes", credits: 3 },
+  "ME 208": { title: "Vibrations", credits: 2 },
+  "ME 334": { title: "Heat and Mass Transfer", credits: 4 },
+  "ME 362": { title: "Introduction to Manufacturing Systems & Metrology", credits: 3 },
+  "ME 333": { title: "Mechanics of Materials", credits: 3 },
+  "ES 245": ELECTRICAL_DETAILS["ES 245"],
+  "ME 335": { title: "Synthesis and Analysis of Mechanisms", credits: 3 },
+  "ME 337": { title: "Mechanical Systems Design", credits: 3 },
+  "ES 337": { title: "Energy Systems", credits: 3 },
+};
+export const MECHANICAL_ELECTIVES = new Set([
+  "CL 324", "CS 435", "ES 214", "ES 408", "ES 604", "ES 607", "ES 613", "ES 616", "ES 621", "ES 622",
+  "ES 631", "ES 632", "ES 641", "ES 642", "ES 646", "ES 648", "ES 653", "ES 656", "MSE 313", "MSE 632",
+]);
+function remainingProgramme(
+  id: ProgrammeId, name: string, shortName: string, coreDetails: Record<string, CourseDetails>,
+  extras: Partial<Programme> = {},
+): Programme {
+  const coreCredits = Object.values(coreDetails).reduce((sum, item) => sum + item.credits, 0);
+  const requirements: Requirement[] = [...commonRequirements,
+    { id: "discipline_core", name: `${shortName} Core`, required: coreCredits, note: `${Object.keys(coreDetails).length} mandatory courses` },
+    ...(id === "civil" ? [{ id: "civil_design" as const, name: "CE Design / Applications", required: 12, note: "Separate design / applications basket" }] : []),
+    { id: "discipline_elective", name: `${shortName} ${id === "civil" ? "General " : ""}Discipline Electives`, required: id === "civil" ? 8 : 20, note: "Approved discipline elective basket" },
+  ];
+  return { id, name, shortName, cohort: "2024–28", totalRequired: 108 + coreCredits + 20,
+    requirements, coreBasket: "discipline_core", core: new Set(Object.keys(coreDetails)),
+    fixedGroups: [...FIXED_GROUPS.filter((group) => group.id !== "core"), { id: "core", name: `${name} core`, codes: Object.keys(coreDetails) }],
+    details: { ...DETAILS, ...coreDetails }, optionIds: optionIds(requirements), ...extras };
+}
 export const PROGRAMMES: Record<ProgrammeId, Programme> = {
   chemical: {
     id: "chemical", name: "Chemical Engineering", shortName: "ChE", cohort: "2024–28",
@@ -245,6 +360,34 @@ export const PROGRAMMES: Record<ProgrammeId, Programme> = {
     core: AI_CORE, coreBasket: "ai_core", details: { ...DETAILS, ...AI_DETAILS }, optionIds: optionIds(aiRequirements),
     cappedElectiveBaskets: ["ai_cse", "ai_elective"], disciplineElectiveCap: 8,
   },
+  civil: remainingProgramme("civil", "Civil Engineering", "CE", CIVIL_DETAILS, {
+    electives: CIVIL_ELECTIVES, sourcePages: "9, 12 and 19",
+    electiveRule: "CE electives need 12 Design / Applications credits and 8 General CE credits. The two baskets are separate; excess in one does not replace the other.",
+  }),
+  electrical: remainingProgramme("electrical", "Electrical Engineering", "EE", ELECTRICAL_DETAILS, {
+    electives: ELECTRICAL_ELECTIVES, electivePrefix: "EE", sourcePages: "9, 13–14 and 21",
+    cappedElectiveBaskets: ["discipline_elective"], prohibitedElectiveKinds: ["online", "project"],
+    electiveRule: "Project courses and online courses are not counted as EE discipline electives. PH 201 must count in the Science basket.",
+    scienceRule: { name: "EE Science: PH 201", codes: ["PH 201"] },
+  }),
+  icdt: remainingProgramme("icdt", "Integrated Circuit Design and Technology", "ICDT", ICDT_DETAILS, {
+    electives: ICDT_ELECTIVES, sourcePages: "9, 14–15 and 22",
+    electiveRule: "Several ICDT core codes are unspecified in the advisory. These courses match by full title; verify the actual transcript code. Unlisted electives need an approved classification.",
+    coreTitleAliases: { "icdt-fabrication": ["Integrated Circuits Fabrication & Manufacturing"], "icdt-thin-film": ["Introduction to Thin Film Science & Vacuum Technology"], "icdt-lab": ["Device Fabrication Lab", "Integrated Circuit Fabrication Lab"] },
+    scienceRule: { name: "ICDT Science: PH 510 or Physics of Materials", codes: ["PH 510"], titles: ["Physics of Materials"] },
+  }),
+  materials: remainingProgramme("materials", "Materials Engineering", "MSE", MATERIALS_DETAILS, {
+    electivePrefix: "MSE", sourcePages: "9, 15–16 and 23",
+    cappedElectiveBaskets: ["discipline_elective"], disciplineElectiveCap: 8, limitedKinds: ["project"], capLabel: "MSE project discipline-elective credits",
+    electiveRule: "All MSE electives are eligible. MSE 299/399/499 projects can contribute at most 8 discipline-elective credits. One of PH 201, PH 202 or CH 203 must count in Science.",
+    scienceRule: { name: "MSE Science: PH 201 / PH 202 / CH 203", codes: ["PH 201", "PH 202", "CH 203"] },
+  }),
+  mechanical: remainingProgramme("mechanical", "Mechanical Engineering", "ME", MECHANICAL_DETAILS, {
+    electives: MECHANICAL_ELECTIVES, electivePrefix: "ME", sourcePages: "9, 16 and 24",
+    cappedElectiveBaskets: ["discipline_elective"], disciplineElectiveCap: 8, limitedKinds: ["project"], capLabel: "ME project discipline-elective credits", prohibitedElectiveKinds: ["online"],
+    electiveRule: "Online courses are not counted as ME discipline electives. ME projects can contribute at most 8 discipline-elective credits. The specified Physics / Chemistry Science requirement is checked separately.",
+    scienceRule: { name: "ME specified Physics / Chemistry Science course", codes: ["PH 201", "PH 202", "PH 404", "PH 503", "PH 505", "PH 507", "PH 508", "PH 509", "PH 510", "CH 203", "CH 204", "CH 302", "CH 401"] },
+  }),
 };
 export function getProgramme(id: ProgrammeId = "chemical") {
   return PROGRAMMES[id];

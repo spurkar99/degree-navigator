@@ -23,6 +23,7 @@ import {
   courseKey,
   courseKind,
   courseReviewReason,
+  electiveCapLabel,
   type Classifications,
 } from "./lib/audit";
 import { normalizeCode, parseAll, parseSemester, type Course } from "./lib/parser";
@@ -204,7 +205,7 @@ export default function App() {
             <span className="brand-icon"><GraduationCap size={22} /></span>
             <div><strong>Degree Navigator</strong><small>IIT Gandhinagar</small></div>
           </div>
-          <span className="cohort">{programme.shortName} · {programme.cohort} · v0.4</span>
+          <span className="cohort">{programme.shortName} · {programme.cohort} · v0.5</span>
         </div>
       </header>
 
@@ -271,7 +272,7 @@ export default function App() {
                     ? ["AI requirements included", "44 core + 20 elective credits, including at least 4 credits from the CSE basket"]
                     : programmeId === "cse"
                     ? ["CSE requirements included", "36 core + 26 elective credits, including Theory & Algorithms and Systems"]
-                    : ["Review before calculating", "Correct every parsed course and requirement basket"],
+                    : [`${programme.shortName} requirements included`, `${programme.requirements.find((item) => item.id === programme.coreBasket)?.required} core + 20 discipline elective credits${programmeId === "civil" ? ", split into 12 Design / Applications and 8 General CE" : ""}`],
                   ["Downloadable workbook", "Your credits and semester plans on one worksheet"],
                   ["No silent guesses", "You confirm any course we cannot place"],
                 ].map(([title, note]) => (
@@ -359,17 +360,19 @@ export default function App() {
               </div>
             )}
 
-            {hasElectiveCap && <p className="suggestions-note">Mark online courses and projects in the Course type column. Together they can contribute at most {programme.disciplineElectiveCap} {programme.shortName} discipline-elective credits. CS 299/399/499 projects are marked automatically.</p>}
+            <p className="suggestions-note">Mark online courses and projects in the Course type column. Independent 299/399/499 projects are marked automatically. Up to 16 project credits can count across the degree, including the Open Project.</p>
+            {programme.electiveRule && <p className="suggestions-note">{programme.electiveRule}</p>}
+            {hasElectiveCap && <p className="suggestions-note">{electiveCapLabel(programmeId)}: at most {programme.disciplineElectiveCap} credits.</p>}
             {!!reviewNotes.length && <div className="warning">
               <AlertTriangle size={20} />
-              <div><strong>Confirm the AI course codes</strong>
+              <div><strong>Confirm the course codes</strong>
                 {reviewNotes.map((item) => <p key={item.code}>{item.reason}</p>)}
               </div>
             </div>}
             <div className="panel review-panel">
               <div className="review-table-wrap">
                 <table className="review-table">
-                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th>{hasElectiveCap && <th>Course type</th>}<th>Source</th><th aria-label="Delete" /></tr></thead>
+                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th><th>Course type</th><th>Source</th><th aria-label="Delete" /></tr></thead>
                   <tbody>
                     {courses.map((course, index) => {
                       const automatic = autoClassify(course, programmeId);
@@ -387,15 +390,15 @@ export default function App() {
                               {programme.optionIds.map((id) => <option key={id} value={id}>{BASKET_LABELS[id]}</option>)}
                             </select>
                           </td>
-                          {hasElectiveCap && <td>
+                          <td>
                             <select aria-label={`Course type for ${course.code}`} value={courseKind(course)}
-                              disabled={/^CS (299|399|499)$/.test(course.code)}
+                              disabled={/^[A-Z]{2,3} (299|399|499)$/.test(course.code)}
                               onChange={(event) => updateCourse(index, { kind: event.target.value as Course["kind"] })}>
                               <option value="regular">Regular</option>
                               <option value="online">Online</option>
                               <option value="project">Project</option>
                             </select>
-                          </td>}
+                          </td>
                           <td><span className={`source-tag ${source === "Needs review" ? "pending" : ""}`}>{source}</span></td>
                           <td><button className="icon-button" onClick={() => removeCourse(index)} aria-label={`Delete ${course.code}`}><Trash2 size={17} /></button></td>
                         </tr>
@@ -472,6 +475,7 @@ export default function App() {
                 <p>Credits are counted once within the base degree.</p>
                 {programmeId === "cse" && <p>Theory & Algorithms and Systems each need at least 8 credits. Extra credits in either basket count toward the other 10 elective credits.</p>}
                 {programmeId === "ai" && <p>At least 4 of the 20 AI elective credits must come from the CSE basket. Extra CSE-basket credits count toward the other 16 elective credits.</p>}
+                {programme.electiveRule && <p>{programme.electiveRule}</p>}
                 <div className="requirement-list">
                   {audit.progress.map((item) => (
                     <div className="requirement" key={item.id}>
@@ -493,11 +497,14 @@ export default function App() {
                 <span>{check.name}</span><strong>{Math.min(check.completed, check.required)}/{check.required} cr {check.remaining === 0 ? "✓" : ""}</strong>
               </div>)}
               {hasElectiveCap && <>
-                <div className="activity"><span>Online + CS project discipline-elective credits</span><strong>{audit.limitedElectiveCredits}/{programme.disciplineElectiveCap} max</strong></div>
+                <div className="activity"><span>{electiveCapLabel(programmeId)}</span><strong>{audit.limitedElectiveCredits}/{programme.disciplineElectiveCap} max</strong></div>
                 <p>{audit.limitedElectiveUnplaced > 0
                   ? `${audit.limitedElectiveUnplaced} submitted elective credits are not placed because of the combined cap. Review their classification.`
                   : `The combined ${programme.disciplineElectiveCap}-credit cap applies only when these courses count as ${programme.shortName} discipline electives.`}</p>
               </>}
+              <div className="activity"><span>Project credits across the degree</span><strong>{audit.projectCredits}/16 max</strong></div>
+              {!!audit.projectLimitUnplaced && <p>{audit.projectLimitUnplaced} project credits exceed the degree-wide cap and are not placed.</p>}
+              {!!audit.prohibitedElectiveCredits && <p className="warning">{audit.prohibitedElectiveCredits} credits are not placed: {audit.prohibitedElectives.map((course) => course.code).join(", ")} have a course type that cannot count as {programme.shortName} discipline electives.</p>}
             </div>
 
             <div className="panel suggestions-panel">
@@ -521,7 +528,7 @@ export default function App() {
                   <div className="missing-group" key={group.id}>
                     <h3>{group.name}</h3>
                     <div>{group.courses.map((course) => (
-                      <span key={course.code} title={course.title}><b>{course.code}</b> · {course.credits} cr</span>
+                      <span key={`${course.code}:${course.title}`} title={course.title}><b>{course.codePending ? course.title : course.code}</b> · {course.credits} cr{course.codePending ? " · code pending in advisory" : ""}</span>
                     ))}</div>
                   </div>
                 ))}

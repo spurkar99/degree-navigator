@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+- Added Civil, Electrical, ICDT, Materials and Mechanical Engineering, completing all eight majors for the 2024 admission batch.
+- Added each branch’s fixed core list, elective baskets, science choices and four-semester example.
+- Added EE / ME course-type restrictions and MSE / ME project-elective limits.
+- Added the 16-credit degree-wide project cap and surfaced unplaced project credits.
+- Matched ICDT core requirements with unspecified codes by full title and displayed pending codes clearly.
+- Extended the one-sheet Excel audit and blank template to every major.
+- Retained base-degree scope; honours and minors remain excluded.
+
 ## 0.4.0
 
 - Added Artificial Intelligence as a third major for the 2024–28 cohort.

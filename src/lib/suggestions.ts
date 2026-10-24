@@ -27,7 +27,7 @@ export function buildSuggestions(audit: ReturnTypeOfAudit, completedSemesters: n
   }
 
   audit.missingGroups.forEach((group) => {
-    const codes = group.courses.map((course) => course.code);
+    const codes = group.courses.map((course) => course.codePending ? course.title : course.code);
     suggestions.push({
       priority: "Next priority",
       title: `Complete ${group.name}`,
@@ -35,7 +35,7 @@ export function buildSuggestions(audit: ReturnTypeOfAudit, completedSemesters: n
     });
   });
 
-  const planningBaskets = new Set(["hss", "science", "open_project", "open_elective", "chemical_elective", "cse_theory", "cse_systems", "cse_elective", "ai_cse", "ai_elective"]);
+  const planningBaskets = new Set(["hss", "science", "open_project", "open_elective", "chemical_elective", "cse_theory", "cse_systems", "cse_elective", "ai_cse", "ai_elective", "discipline_elective", "civil_design"]);
   audit.progress
     .filter((item) => item.remaining > 0 && planningBaskets.has(item.id))
     .forEach((item) => {
@@ -52,8 +52,12 @@ export function buildSuggestions(audit: ReturnTypeOfAudit, completedSemesters: n
   });
   if (audit.limitedElectiveUnplaced > 0) {
     suggestions.push({ priority: "Action needed", title: `Review the ${audit.programme.shortName} online / project elective limit`,
-      detail: `${audit.limitedElectiveUnplaced} credits exceed the combined ${audit.programme.disciplineElectiveCap}-credit cap for online courses and CS projects as discipline electives. Review their placement; other degree requirements still apply.` });
+      detail: `${audit.limitedElectiveUnplaced} credits exceed the ${audit.programme.disciplineElectiveCap}-credit discipline-elective cap for ${audit.programme.limitedKinds?.length === 1 ? "projects" : "online courses and CS projects"}. Review their placement; other degree requirements still apply.` });
   }
+  if (audit.prohibitedElectives.length) suggestions.push({ priority: "Action needed", title: `Review ineligible ${audit.programme.shortName} discipline electives`,
+    detail: `${audit.prohibitedElectives.map((course) => course.code).join(", ")} contribute zero discipline-elective credits because their course type is not permitted. Confirm another approved placement.` });
+  if (audit.projectLimitUnplaced) suggestions.push({ priority: "Action needed", title: "Review the 16-credit total project limit",
+    detail: `${audit.projectLimitUnplaced} project credits exceed the degree-wide project maximum, including the Open Project. Review their placement.` });
   if (audit.duplicateCourses.length) {
     suggestions.push({ priority: "Action needed", title: "Review repeated course codes",
       detail: "Repeated course codes were counted once. Check retakes and remove duplicate records before using this audit." });

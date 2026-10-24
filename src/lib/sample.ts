@@ -88,8 +88,60 @@ export const AI_SAMPLE_TRANSCRIPT: Record<number, string> = {
 | PE 104 | Physical Education | 0 |`,
 };
 
+// Illustrative histories based on Advisory 13 sample paths, with actual
+// Science / HSS / elective examples substituted for generic basket slots.
+const sampleYearOne = { 1: CSE_SAMPLE_TRANSCRIPT[1], 2: CSE_SAMPLE_TRANSCRIPT[2] };
+const semesterRows = (rows: [string, string, number][], semester: number) => [
+  ...rows.map(([code, title, credits]) => `| ${code} | ${title} | ${credits} |`),
+  `| IN 10${semester} | Comprehensive Viva Voce | 0 |`,
+  `| PE 10${semester} | Physical Education | 0 |`,
+].join("\n");
+const commonThird: [string, string, number][] = [
+  ["GE 201", "General Education II", 2], ["HS 221", "Introduction to Philosophy", 4], ["MA 203", "Numerical Methods", 2],
+];
+const commonFourth: [string, string, number][] = [["MS 408", "Financial Considerations in Engineering Decisions", 4], ["MA 205", "Calculus of Several Variables", 2]];
+export const CIVIL_SAMPLE_TRANSCRIPT = { ...sampleYearOne,
+  3: semesterRows([...commonThird, ["PH 201", "Introduction to Electrodynamics", 4], ["ES 243", "Biology for Engineers", 4],
+    ["ES 221", "Mechanics of Solids", 4], ["CE 201", "Earth Materials & Processes", 2], ["CE 203", "Geospatial Engineering", 3]], 3),
+  4: semesterRows([...commonFourth, ["EH 612", "Ocean and Global Change", 4], ["ES 212", "Fluid Mechanics", 4],
+    ["CE 202", "Sustainability & Environment", 3], ["CE 302", "Structural Analysis", 4], ["CE 313", "Environmental Science and Engineering", 4]], 4),
+};
+export const ELECTRICAL_SAMPLE_TRANSCRIPT = { ...sampleYearOne,
+  3: semesterRows([...commonThird, ["PH 201", "Introduction to Electrodynamics", 4], ["ES 243", "Biology for Engineers", 4],
+    ["ES 244", "Signals, Systems & Random Processes", 4], ["EE 221", "Electronic Devices", 3], ["EE 223", "Electrical Machines", 4]], 3),
+  4: semesterRows([...commonFourth, ["EH 612", "Ocean and Global Change", 4], ["ES 204", "Digital Systems", 4],
+    ["EE 224", "Power Systems", 4], ["ES 245", "Control Systems", 4]], 4),
+};
+// The advisory leaves these four ICDT codes blank. This example uses codes
+// verified by title/credits in IITGN's official course list (October 2026):
+// https://iitgn.ac.in/academics/courses . No new course equivalences are inferred.
+// The unnumbered IC Fabrication & Manufacturing course is left for later.
+export const ICDT_SAMPLE_TRANSCRIPT = { ...sampleYearOne,
+  3: semesterRows([...commonThird, ["ES 204", "Digital Systems", 4], ["ES 244", "Signals, Systems & Random Processes", 4],
+    ["EE 322", "Analog & Mixed Signal Circuits", 4], ["EE 225", "Unveiling the Semiconductor World", 2], ["EE 226", "Semiconductor Devices", 4]], 3),
+  4: semesterRows([...commonFourth, ["PH 510", "Condensed Matter Physics", 4], ["EE 227", "CMOS Circuit Design", 4],
+    ["ES 339", "Integrated Circuit Fabrication Lab", 2], ["EE 651", "CMOS Analog IC Design", 4]], 4),
+};
+export const MATERIALS_SAMPLE_TRANSCRIPT = { ...sampleYearOne,
+  3: semesterRows([...commonThird, ["ES 243", "Biology for Engineers", 4], ["MSE 202", "Materials Thermodynamics", 4],
+    ["MSE 204", "Transport Phenomena in Materials Engineering", 4], ["MSE 207", "Structure of Materials", 4]], 3),
+  4: semesterRows([...commonFourth, ["MSE 203", "Integrated Computational Materials Engineering", 4], ["MSE 205", "Mechanical Behaviour of Materials", 4],
+    ["MSE 206", "Physics of Materials", 4], ["MSE 210", "Microstructural Engineering", 4], ["MSE 632", "Characterization of Materials", 4]], 4),
+};
+export const MECHANICAL_SAMPLE_TRANSCRIPT = { ...sampleYearOne,
+  3: semesterRows([...commonThird, ["PH 201", "Introduction to Electrodynamics", 4], ["ES 243", "Biology for Engineers", 4],
+    ["ES 211", "Thermodynamics", 3], ["ME 206", "Statics & Dynamics", 4]], 3),
+  4: semesterRows([...commonFourth, ["EH 612", "Ocean and Global Change", 4], ["ES 221", "Mechanics of Solids", 4],
+    ["ME 207", "Fluid Dynamics", 5], ["ME 208", "Vibrations", 2], ["ME 209", "Principles of Manufacturing Processes", 3]], 4),
+};
+
 export const SAMPLE_TRANSCRIPTS = {
   chemical: SAMPLE_TRANSCRIPT,
   cse: CSE_SAMPLE_TRANSCRIPT,
   ai: AI_SAMPLE_TRANSCRIPT,
+  civil: CIVIL_SAMPLE_TRANSCRIPT,
+  electrical: ELECTRICAL_SAMPLE_TRANSCRIPT,
+  icdt: ICDT_SAMPLE_TRANSCRIPT,
+  materials: MATERIALS_SAMPLE_TRANSCRIPT,
+  mechanical: MECHANICAL_SAMPLE_TRANSCRIPT,
 };

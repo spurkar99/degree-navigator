@@ -145,7 +145,7 @@ describe("Computer Science and Engineering 2024–28", () => {
     expect(workbook.getWorksheet("Graduation plan")?.getCell("O3").value).toContain("Computer Science and Engineering");
     const serialized = JSON.stringify(workbook.model);
     expect(serialized).toContain("CSE Theory & Algorithms");
-    expect(serialized).toContain("Online + CS project elective cap");
+    expect(serialized.includes("Online + CS project discipline-elective credits")).toBe(true);
     expect(workbook.worksheets).toHaveLength(1);
     expect(serialized).not.toContain("ChE Discipline Electives");
     expect((await workbook.xlsx.writeBuffer()).byteLength).toBeGreaterThan(8_000);

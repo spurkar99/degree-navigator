@@ -1,4 +1,4 @@
-import { courseKind, resolveBasket, type Classifications } from "./audit";
+import { courseKind, electiveCapLabel, resolveBasket, type Classifications } from "./audit";
 import type { Course } from "./parser";
 import { RULESET, type BasketId } from "./rules";
 import type { Suggestion } from "./suggestions";
@@ -34,6 +34,7 @@ export const EXPORT_LABELS: Record<BasketId, string> = {
   chemical_core: "ChE core", chemical_elective: "ChE elective", cse_core: "CSE core",
   cse_theory: "Theory & Algo.", cse_systems: "Systems", cse_elective: "CSE elective",
   ai_core: "AI core", ai_cse: "AI CSE basket", ai_elective: "AI elective",
+  discipline_core: "Discipline core", discipline_elective: "Discipline elective", civil_design: "CE Design / Appl.",
   excluded: "Not counted", unresolved: "Review",
 };
 
@@ -105,21 +106,25 @@ export function buildGraduationLayout(
     ["Unclassified credits", audit.pending],
     ["Excluded credits", audit.excludedCredits],
     ["Repeated course codes not counted again", audit.duplicateCourses.length],
+    ["Project credits across the degree", `${audit.projectCredits} / 16 maximum`],
+    ["Project credits over the degree-wide cap", audit.projectLimitUnplaced],
+    ["Ineligible discipline-elective credits", audit.prohibitedElectiveCredits],
   ];
-  if (audit.programme.disciplineElectiveCap !== undefined) checks.push(["Online + CS project elective cap", `${audit.limitedElectiveCredits} / ${audit.programme.disciplineElectiveCap} maximum`], ["Credits over that combined cap", audit.limitedElectiveUnplaced]);
+  if (audit.programme.disciplineElectiveCap !== undefined) checks.push([electiveCapLabel(audit.programmeId), `${audit.limitedElectiveCredits} / ${audit.programme.disciplineElectiveCap} maximum`], ["Credits over that elective cap", audit.limitedElectiveUnplaced]);
   checks.forEach(([label, value], index) => { put(8 + index, 15, 23, label); put(8 + index, 24, 27, value, "number", "right"); });
   const missing = audit.missingGroups.flatMap((group) => group.courses);
   const missingLine = 8 + checks.length;
   put(missingLine, 15, 27, `${missing.length} compulsory course${missing.length === 1 ? "" : "s"} still missing or not placed correctly. See the list below.`, "muted");
-  put(totalRow, 15, 23, "Unplanned credit gap (credit count only)", "total");
-  formula(totalRow, 24, 27, "MAX(0,O5-V5)", audit.remaining, "total");
+  const rightTotalRow = Math.max(totalRow, missingLine + 1);
+  put(rightTotalRow, 15, 23, "Unplanned credit gap (credit count only)", "total");
+  formula(rightTotalRow, 24, 27, "MAX(0,O5-V5)", audit.remaining, "total");
 
   // Four semesters across, two bands; keep every submitted course. Activity
   // records are shown in each semester footer instead of repeating zero rows.
   const activity = (course: Course) => course.credits === 0 && /^(PE 10[1-4]|IN 1\d{2})$/.test(course.code);
   const bySemester = Array.from({ length: 8 }, (_, i) => courses.filter((course) => course.semester === i + 1 && !activity(course)).slice().sort((a, b) => a.code.localeCompare(b.code)));
   const duplicates = new Set(audit.duplicateCourses);
-  let blockStart = Math.max(totalRow + 3, missingLine + 3);
+  let blockStart = Math.max(totalRow + 3, rightTotalRow + 3);
   for (let band = 0; band < 2; band++) {
     const slots = Math.max(8, ...bySemester.slice(band * 4, band * 4 + 4).map((items) => items.length));
     for (let panel = 0; panel < 4; panel++) {
@@ -168,8 +173,10 @@ export function buildGraduationLayout(
   if (audit.limitedCourses.length) put(row++, 1, 27, `Online / project credits within the ${audit.programme.shortName} elective cap: ${audit.limitedCourses.map((item) => `${item.course.code} ${item.eligible}/${item.course.credits}`).join("; ")}. Transcript credits above remain unchanged.`, "muted");
   if (audit.programmeId === "cse") put(row++, 1, 27, "CSE electives: at least 8 Theory & Algorithms + 8 Systems within 26 total. Surplus from either basket can meet the other 10 elective credits. Online courses and CS projects share an 8-credit discipline-elective cap.", "muted");
   if (audit.programmeId === "ai") put(row++, 1, 27, "AI electives: at least 4 CSE-basket credits within 20 total. Surplus CSE-basket credits can meet the other 16. Online courses and CS projects share an 8-credit AI discipline-elective cap. Confirm inconsistent or renamed course codes.", "muted");
+  if (audit.programme.electiveRule) put(row++, 1, 27, audit.programme.electiveRule, "muted");
+  if (audit.prohibitedElectives.length) put(row++, 1, 27, `Ineligible discipline electives: ${audit.prohibitedElectives.map((course) => `${course.code} (${courseKind(course)})`).join("; ")}. Their discipline-elective contribution is zero; review another approved placement.`, "muted");
   put(row++, 1, 27, "Completed credits are the downloaded audit snapshot. Yellow future-semester cells are editable; planned totals are raw credits, not approved graduation credits. Re-run the app to audit changed coursework.", "muted");
-  put(row++, 1, 27, `Source: ${RULESET.source}${audit.programmeId === "cse" ? ", CSE requirements pp. 12–13 and 20" : audit.programmeId === "ai" ? ", AI requirements pp. 10–11 and 17" : ""}. Base B.Tech only. Confirm substitutions, course availability and special approvals with your faculty advisor.`, "muted");
+  put(row++, 1, 27, `Source: ${RULESET.source}${audit.programme.sourcePages ? `, pp. ${audit.programme.sourcePages}` : audit.programmeId === "cse" ? ", CSE requirements pp. 12–13 and 20" : audit.programmeId === "ai" ? ", AI requirements pp. 10–11 and 17" : ""}. Base B.Tech only. Confirm substitutions, course availability and special approvals with your faculty advisor.`, "muted");
 
   return { name: "Graduation plan", cells, widths, heights, lastRow: row - 1,
     plannedCreditRanges, plannedCategoryRanges, remainingCells,
