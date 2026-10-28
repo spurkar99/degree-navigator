@@ -4,6 +4,7 @@ export type Course = {
   title: string;
   credits: number;
   kind?: "regular" | "online" | "project";
+  onlineProvider?: "swayam_nptel" | "other";
 };
 
 const COURSE_CODE = /^[A-Z]{2,3}\s*\d{3}(?:-[A-Z0-9]+)?$/i;

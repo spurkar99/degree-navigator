@@ -5,6 +5,7 @@ import type { Course } from "./parser";
 import { getProgramme, type ProgrammeId } from "./rules";
 import { buildSuggestions, type Suggestion } from "./suggestions";
 import type { ReturnTypeOfAudit } from "./types";
+import { auditMinors, type MinorAudit, type MinorPlan } from "./minors";
 
 async function saveWorkbook(workbook: ExcelJS.Workbook, filename: string) {
   const buffer = await workbook.xlsx.writeBuffer();
@@ -77,29 +78,29 @@ export function buildWorkbookFromLayout(layout: SheetLayout) {
   return workbook;
 }
 
-export function buildInputTemplateWorkbook(programmeId: ProgrammeId = "chemical") {
+export function buildInputTemplateWorkbook(programmeId: ProgrammeId = "chemical", minorPlan?: MinorPlan) {
   const audit = auditCourses([], {}, programmeId);
   return buildWorkbookFromLayout(buildGraduationLayout(
-    { currentSemester: 1 }, [], {}, audit, [], true,
+    { currentSemester: 1 }, [], {}, audit, [], true, minorPlan?auditMinors([],{},audit,minorPlan):undefined,
   ));
 }
 
 export function buildAuditWorkbook(
   profile: StudentProfile, courses: Course[], choices: Classifications,
-  audit: ReturnTypeOfAudit, suggestions: Suggestion[] = buildSuggestions(audit, profile.currentSemester - 1),
+  audit: ReturnTypeOfAudit, suggestions: Suggestion[] = buildSuggestions(audit, profile.currentSemester - 1), minors?: MinorAudit,
 ) {
-  return buildWorkbookFromLayout(buildGraduationLayout(profile, courses, choices, audit, suggestions));
+  return buildWorkbookFromLayout(buildGraduationLayout(profile, courses, choices, audit, suggestions, false, minors));
 }
 
-export async function downloadInputTemplate(programmeId: ProgrammeId = "chemical") {
-  await saveWorkbook(buildInputTemplateWorkbook(programmeId), `Degree-Navigator-${getProgramme(programmeId).shortName}-Course-Template.xlsx`);
+export async function downloadInputTemplate(programmeId: ProgrammeId = "chemical", minorPlan?: MinorPlan) {
+  await saveWorkbook(buildInputTemplateWorkbook(programmeId,minorPlan), `Degree-Navigator-${getProgramme(programmeId).shortName}-Course-Template.xlsx`);
 }
 
 export async function downloadAuditWorkbook(
   profile: StudentProfile, courses: Course[], choices: Classifications,
-  audit: ReturnTypeOfAudit, suggestions: Suggestion[],
+  audit: ReturnTypeOfAudit, suggestions: Suggestion[], minors?: MinorAudit,
 ) {
   const identifier = profile.rollNumber?.trim() || profile.name?.trim().replace(/\s+/g, "-") || "Student";
-  await saveWorkbook(buildAuditWorkbook(profile, courses, choices, audit, suggestions),
+  await saveWorkbook(buildAuditWorkbook(profile, courses, choices, audit, suggestions, minors),
     `Degree-Navigator-${audit.programme.shortName}-${identifier}-Graduation-Plan.xlsx`);
 }

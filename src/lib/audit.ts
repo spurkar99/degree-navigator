@@ -44,7 +44,7 @@ export function autoClassify(course: Course, programmeId: ProgrammeId = "chemica
   if (courseReviewReason(course, programmeId)) return null;
   if (course.code.startsWith("SC ")) return "excluded";
   if (course.code === "FP 100") return "foundation";
-  if (course.code.startsWith("PE ") || course.code.startsWith("IN ")) return "excluded";
+  if (course.code.startsWith("PE ") || /^IN 1\d{2}$/.test(course.code)) return "excluded";
   if (INSTITUTE.has(course.code)) return "institute";
   if (MATHEMATICS.has(course.code)) return "mathematics";
   if (HSS_MANDATORY.has(course.code) || /^(GE|HS|MS) /.test(course.code)) return "hss";
@@ -85,6 +85,7 @@ export function auditCourses(courses: Course[], choices: Classifications, progra
   const totals = Object.fromEntries(programme.requirements.map((item) => [item.id, 0])) as Record<BasketId, number>;
   const unresolved: Course[] = [];
   const excluded: Course[] = [];
+  const additionalCourses: Course[] = [];
   const limitedCourses: { course: Course; eligible: number; notPlaced: number }[] = [];
   const prohibitedElectives: Course[] = [];
   const projectLimitedCourses: { course: Course; notPlaced: number }[] = [];
@@ -102,6 +103,7 @@ export function auditCourses(courses: Course[], choices: Classifications, progra
     const basket = resolveBasket(course, choices, programmeId);
     if (basket === "unresolved") { unresolved.push(course); return; }
     if (basket === "excluded") { excluded.push(course); return; }
+    if (basket === "additional") { additionalCourses.push(course); return; }
     const coreKey = basket === programme.coreBasket ? matchCoreRequirement(course, programmeId) : undefined;
     if (coreKey && seenCore.has(coreKey)) { duplicateCourses.push(course); return; }
     if (coreKey) seenCore.add(coreKey);
@@ -172,6 +174,7 @@ export function auditCourses(courses: Course[], choices: Classifications, progra
   const allocated = progress.reduce((total, item) => total + item.completed, 0);
   return {
     programmeId, programme, totalRequired: programme.totalRequired, progress, totals, allocated,
+    counted, additionalCourses, additionalCredits: additionalCourses.reduce((sum, c) => sum + c.credits, 0),
     remaining: programme.totalRequired - allocated,
     pending: unresolved.reduce((sum, course) => sum + course.credits, 0), unresolved,
     excludedCredits: excluded.reduce((sum, course) => sum + course.credits, 0), missingGroups,

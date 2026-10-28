@@ -3,6 +3,7 @@ import type { Course } from "./parser";
 import { RULESET, type BasketId } from "./rules";
 import type { Suggestion } from "./suggestions";
 import type { ReturnTypeOfAudit } from "./types";
+import { MINOR_SOURCE, minorNote, type MinorAudit } from "./minors";
 
 export type StudentProfile = { name?: string; rollNumber?: string; currentSemester: number };
 export type CellStyle = "title" | "muted" | "section" | "header" | "body" | "input" | "total" | "number" | "headline";
@@ -35,6 +36,7 @@ export const EXPORT_LABELS: Record<BasketId, string> = {
   cse_theory: "Theory & Algo.", cse_systems: "Systems", cse_elective: "CSE elective",
   ai_core: "AI core", ai_cse: "AI CSE basket", ai_elective: "AI elective",
   discipline_core: "Discipline core", discipline_elective: "Discipline elective", civil_design: "CE Design / Appl.",
+  additional: "Minor only",
   excluded: "Not counted", unresolved: "Review",
 };
 
@@ -47,7 +49,7 @@ export function columnName(column: number): string {
 /** One worksheet shared by the browser exporter and the standalone preview. */
 export function buildGraduationLayout(
   profile: StudentProfile, courses: Course[], choices: Classifications,
-  audit: ReturnTypeOfAudit, suggestions: Suggestion[], blank = false,
+  audit: ReturnTypeOfAudit, suggestions: Suggestion[], blank = false, minors?: MinorAudit,
 ): SheetLayout {
   const widths = Array.from({ length: 27 }, (_, index) => [4.5, 4.5, 15, 15, 4.5, 15, 2][index % 7]);
   const cells: SheetCell[] = [];
@@ -106,7 +108,7 @@ export function buildGraduationLayout(
     ["Unclassified credits", audit.pending],
     ["Excluded credits", audit.excludedCredits],
     ["Repeated course codes not counted again", audit.duplicateCourses.length],
-    ["Project credits across the degree", `${audit.projectCredits} / 16 maximum`],
+    ["Project credits across the degree", `${minors?.projectCredits ?? audit.projectCredits} / 16 maximum`],
     ["Project credits over the degree-wide cap", audit.projectLimitUnplaced],
     ["Ineligible discipline-elective credits", audit.prohibitedElectiveCredits],
   ];
@@ -175,8 +177,19 @@ export function buildGraduationLayout(
   if (audit.programmeId === "ai") put(row++, 1, 27, "AI electives: at least 4 CSE-basket credits within 20 total. Surplus CSE-basket credits can meet the other 16. Online courses and CS projects share an 8-credit AI discipline-elective cap. Confirm inconsistent or renamed course codes.", "muted");
   if (audit.programme.electiveRule) put(row++, 1, 27, audit.programme.electiveRule, "muted");
   if (audit.prohibitedElectives.length) put(row++, 1, 27, `Ineligible discipline electives: ${audit.prohibitedElectives.map((course) => `${course.code} (${courseKind(course)})`).join("; ")}. Their discipline-elective contribution is zero; review another approved placement.`, "muted");
+  if (minors?.results.length) {
+    put(row++,1,27,"Minors — separate from the base-degree credit total", "section");
+    put(row++,1,27,`${minors.sharedCourses}/2 Open Elective courses shared (${minors.sharedCredits} credits) across all minors; ${minors.additionalCredits} minor-only credits. Projects across base degree and minors: ${minors.projectCredits}/16 credits. Each course is assigned to one minor; no minor-to-minor sharing is assumed.`,"muted");
+    for (const minor of minors.results) {
+      put(row,1,13,`${minor.name} — ${minor.completed}/20 credits; ${minor.remaining} left`,"header");
+      put(row++,15,27,minor.status,"header");
+      put(row++,1,27,`${minor.additional} minor-only + ${minor.shared} shared credits. ${minorNote(minor.id)}${minor.checks.length?` Checks: ${minor.checks.map((check)=>`${check.name}: ${Math.min(check.completed,check.required)}/${check.required} ${check.unit}`).join("; ")}.`:""}`,"muted");
+      put(row++,1,27,`Courses: ${minor.entries.length?minor.entries.map((entry)=>`${entry.course.code} ${entry.credits} cr${entry.shared?" (shared OE)":""}${entry.category==="circuits"?" [Circuits]":entry.category==="devices"?" [Materials & Devices]":""}`).join("; "):"none placed yet"}.${minor.issues.length?` Review: ${minor.issues.join(" ")}`:""}`,"muted");
+    }
+    put(row++,1,27,`Minor source: ${MINOR_SOURCE}. Department approvals are student declarations. Minors whose baskets are not specified in this advisory remain marked for department review; tracked-rule completion is not an institute award.`,"muted");
+  }
   put(row++, 1, 27, "Completed credits are the downloaded audit snapshot. Yellow future-semester cells are editable; planned totals are raw credits, not approved graduation credits. Re-run the app to audit changed coursework.", "muted");
-  put(row++, 1, 27, `Source: ${RULESET.source}${audit.programme.sourcePages ? `, pp. ${audit.programme.sourcePages}` : audit.programmeId === "cse" ? ", CSE requirements pp. 12–13 and 20" : audit.programmeId === "ai" ? ", AI requirements pp. 10–11 and 17" : ""}. Base B.Tech only. Confirm substitutions, course availability and special approvals with your faculty advisor.`, "muted");
+  put(row++, 1, 27, `Source: ${RULESET.source}${audit.programme.sourcePages ? `, pp. ${audit.programme.sourcePages}` : audit.programmeId === "cse" ? ", CSE requirements pp. 12–13 and 20" : audit.programmeId === "ai" ? ", AI requirements pp. 10–11 and 17" : ""}. ${minors?.results.length?"Base B.Tech and selected minors; honours excluded":"Base B.Tech only"}. Confirm substitutions, course availability and special approvals with your faculty advisor.`, "muted");
 
   return { name: "Graduation plan", cells, widths, heights, lastRow: row - 1,
     plannedCreditRanges, plannedCategoryRanges, remainingCells,

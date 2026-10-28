@@ -30,6 +30,8 @@ import { normalizeCode, parseAll, parseSemester, type Course } from "./lib/parse
 import { BASKET_LABELS, PROGRAMMES, getProgramme, type ProgrammeId, type BasketId } from "./lib/rules";
 import { SAMPLE_TRANSCRIPTS } from "./lib/sample";
 import { buildSuggestions } from "./lib/suggestions";
+import { auditMinors, emptyMinorPlan, minorAllowed, minorNote, minorName, type MinorId, type MinorPlacement, type MinorPlan } from "./lib/minors";
+import { MinorCourseChoice, MinorPicker, MinorResults } from "./MinorPanels";
 
 type Stage = "profile" | "courses" | "review" | "audit";
 
@@ -81,12 +83,14 @@ export default function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [choices, setChoices] = useState<Classifications>({});
+  const [minorPlan,setMinorPlan] = useState<MinorPlan>(emptyMinorPlan);
   const [exporting, setExporting] = useState(false);
 
   const completed = Math.max(0, Number(current || 0) - 1);
   const semesters = Array.from({ length: completed }, (_, index) => index + 1);
   const audit = useMemo(() => auditCourses(courses, choices, programmeId), [courses, choices, programmeId]);
   const suggestions = useMemo(() => buildSuggestions(audit, completed), [audit, completed]);
+  const minorAudit = useMemo(()=>auditMinors(courses,choices,audit,minorPlan),[courses,choices,audit,minorPlan]);
   const coursesNeedingAnswers = courses.filter(
     (course) => autoClassify(course, programmeId) === null && choices[courseKey(course)] === undefined,
   );
@@ -108,6 +112,7 @@ export default function App() {
     setCurrent("5");
     setInputs(SAMPLE_TRANSCRIPTS[programmeId]);
     setChoices({});
+    setMinorPlan((plan)=>({...plan,placements:{}}));
     setStage("courses");
   }
 
@@ -116,12 +121,19 @@ export default function App() {
     setCourses(parsed.courses);
     setWarnings(parsed.warnings);
     setChoices({});
+    setMinorPlan((plan)=>({...plan,placements:{}}));
     setStage("review");
   }
 
   function updateCourse(index: number, update: Partial<Course>) {
     const previous = courses[index];
     const oldKey = courseKey(previous);
+    setMinorPlan((plan)=>{
+      const placements={...plan.placements};
+      if(update.code!==undefined||update.semester!==undefined) delete placements[oldKey];
+      else if(placements[oldKey]) placements[oldKey]={...placements[oldKey],approved:false};
+      return {...plan,placements};
+    });
     setCourses((existing) => existing.map((course, courseIndex) => (
       courseIndex === index ? { ...course, ...update } : course
     )));
@@ -136,6 +148,7 @@ export default function App() {
 
   function removeCourse(index: number) {
     const key = courseKey(courses[index]);
+    setMinorPlan((plan)=>{const placements={...plan.placements};delete placements[key];return {...plan,placements};});
     setCourses((existing) => existing.filter((_, courseIndex) => courseIndex !== index));
     setChoices((existing) => {
       const next = { ...existing };
@@ -160,13 +173,25 @@ export default function App() {
     });
   }
 
+  function toggleMinor(id:MinorId) {
+    setMinorPlan((plan)=>{
+      const selected=plan.selected.includes(id)?plan.selected.filter((item)=>item!==id):[...plan.selected,id];
+      return {selected,placements:Object.fromEntries(Object.entries(plan.placements).filter(([,p])=>selected.includes(p.minorId)))};
+    });
+  }
+
+  function setMinorPlacement(course:Course,placement?:MinorPlacement) {
+    setMinorPlan((plan)=>{const placements={...plan.placements};if(placement)placements[courseKey(course)]=placement;else delete placements[courseKey(course)];return {...plan,placements};});
+    if(placement && !choices[courseKey(course)] && autoClassify(course,programmeId)===null) setClassification(course,"additional");
+  }
+
   async function exportAudit() {
     setExporting(true);
     try {
       const { downloadAuditWorkbook } = await import("./lib/excel");
       await downloadAuditWorkbook(
         { name: studentName, rollNumber, currentSemester: Number(current) },
-        courses, choices, audit, suggestions,
+        courses, choices, audit, suggestions, minorAudit,
       );
     } finally {
       setExporting(false);
@@ -175,7 +200,7 @@ export default function App() {
 
   async function exportTemplate() {
     const { downloadInputTemplate } = await import("./lib/excel");
-    await downloadInputTemplate(programmeId);
+    await downloadInputTemplate(programmeId,minorPlan);
   }
 
   function reset() {
@@ -187,6 +212,7 @@ export default function App() {
     setCourses([]);
     setWarnings([]);
     setChoices({});
+    setMinorPlan(emptyMinorPlan());
   }
 
   const canAnalyze = semesters.length > 0 && semesters.every(
@@ -205,7 +231,7 @@ export default function App() {
             <span className="brand-icon"><GraduationCap size={22} /></span>
             <div><strong>Degree Navigator</strong><small>IIT Gandhinagar</small></div>
           </div>
-          <span className="cohort">{programme.shortName} · {programme.cohort} · v0.5</span>
+          <span className="cohort">{programme.shortName} · {programme.cohort} · v0.6</span>
         </div>
       </header>
 
@@ -227,11 +253,13 @@ export default function App() {
                   <select id="major" value={programmeId} onChange={(event) => {
                     setProgrammeId(event.target.value as ProgrammeId);
                     setChoices({});
+                    setMinorPlan((plan)=>({selected:plan.selected.filter((id)=>minorAllowed(id,event.target.value as ProgrammeId)),placements:{}}));
                   }}>
                     {Object.values(PROGRAMMES).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </select>
                   <p>2024 admission batch · Base B.Tech degree</p>
                 </div>
+                <MinorPicker major={programmeId} plan={minorPlan} onToggle={toggleMinor} />
                 <div className="form-grid">
                   <label>
                     <span>Name <small>optional</small></span>
@@ -361,6 +389,10 @@ export default function App() {
             )}
 
             <p className="suggestions-note">Mark online courses and projects in the Course type column. Independent 299/399/499 projects are marked automatically. Up to 16 project credits can count across the degree, including the Open Project.</p>
+            {minorPlan.selected.length>0 && <div className="minor-review-intro">
+              <h2>Place courses for your minors</h2><p>Choose a minor in the last column. For a minor-only course, select “Additional learning (minor only)” as its requirement. To share it with the base degree, use “Open Elective”; only two courses can be shared across all minors. Courses counted in HSS, Science, Open Project or discipline baskets cannot also count towards a minor.</p>
+              <details><summary>Rules for selected minors</summary>{minorPlan.selected.map((id)=><p key={id}><strong>{minorName(id)}:</strong> {minorNote(id)}</p>)}</details>
+            </div>}
             {programme.electiveRule && <p className="suggestions-note">{programme.electiveRule}</p>}
             {hasElectiveCap && <p className="suggestions-note">{electiveCapLabel(programmeId)}: at most {programme.disciplineElectiveCap} credits.</p>}
             {!!reviewNotes.length && <div className="warning">
@@ -372,7 +404,7 @@ export default function App() {
             <div className="panel review-panel">
               <div className="review-table-wrap">
                 <table className="review-table">
-                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th><th>Course type</th><th>Source</th><th aria-label="Delete" /></tr></thead>
+                  <thead><tr><th>Sem</th><th>Course code</th><th>Course name</th><th>Credits</th><th>Requirement</th><th>Course type</th>{minorPlan.selected.length>0 && <th>Minor placement</th>}<th>Source</th><th aria-label="Delete" /></tr></thead>
                   <tbody>
                     {courses.map((course, index) => {
                       const automatic = autoClassify(course, programmeId);
@@ -391,14 +423,16 @@ export default function App() {
                             </select>
                           </td>
                           <td>
-                            <select aria-label={`Course type for ${course.code}`} value={courseKind(course)}
+                            <select aria-label={`Course type for ${course.code}`} value={courseKind(course)==="online" && course.onlineProvider==="swayam_nptel"?"nptel":courseKind(course)}
                               disabled={/^[A-Z]{2,3} (299|399|499)$/.test(course.code)}
-                              onChange={(event) => updateCourse(index, { kind: event.target.value as Course["kind"] })}>
+                              onChange={(event) => updateCourse(index, { kind: event.target.value==="nptel"?"online":event.target.value as Course["kind"],onlineProvider:event.target.value==="nptel"?"swayam_nptel":"other" })}>
                               <option value="regular">Regular</option>
-                              <option value="online">Online</option>
+                              <option value="online">Online (other / unspecified)</option>
+                              <option value="nptel">Online (Swayam-NPTEL)</option>
                               <option value="project">Project</option>
                             </select>
                           </td>
+                          {minorPlan.selected.length>0 && <MinorCourseChoice course={course} plan={minorPlan} onChange={(p)=>setMinorPlacement(course,p)} />}
                           <td><span className={`source-tag ${source === "Needs review" ? "pending" : ""}`}>{source}</span></td>
                           <td><button className="icon-button" onClick={() => removeCourse(index)} aria-label={`Delete ${course.code}`}><Trash2 size={17} /></button></td>
                         </tr>
@@ -409,6 +443,7 @@ export default function App() {
               </div>
               <button className="button text add-course" onClick={addCourse}><Plus size={17} /> Add a missing course</button>
             </div>
+            <MinorResults audit={minorAudit} />
 
             <div className="action-bar">
               <button className="button text" onClick={() => setStage("courses")}><ArrowLeft size={18} /> Edit pasted tables</button>
@@ -490,6 +525,8 @@ export default function App() {
               </div>
             </div>
 
+            <MinorResults audit={minorAudit} />
+
             <div className="panel checks-panel">
               <h2>Checks within the credit requirements</h2>
               <p>These checks are included in the {totalRequired} credits above.</p>
@@ -502,7 +539,7 @@ export default function App() {
                   ? `${audit.limitedElectiveUnplaced} submitted elective credits are not placed because of the combined cap. Review their classification.`
                   : `The combined ${programme.disciplineElectiveCap}-credit cap applies only when these courses count as ${programme.shortName} discipline electives.`}</p>
               </>}
-              <div className="activity"><span>Project credits across the degree</span><strong>{audit.projectCredits}/16 max</strong></div>
+              <div className="activity"><span>Project credits across the degree{minorPlan.selected.length?" and minors":""}</span><strong>{minorPlan.selected.length?minorAudit.projectCredits:audit.projectCredits}/16 max</strong></div>
               {!!audit.projectLimitUnplaced && <p>{audit.projectLimitUnplaced} project credits exceed the degree-wide cap and are not placed.</p>}
               {!!audit.prohibitedElectiveCredits && <p className="warning">{audit.prohibitedElectiveCredits} credits are not placed: {audit.prohibitedElectives.map((course) => course.code).join(", ")} have a course type that cannot count as {programme.shortName} discipline electives.</p>}
             </div>

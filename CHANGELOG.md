@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+- Added all 26 advisory minors to the profile selector, with own-major exclusions.
+- Added course placement for minors, additional-learning credits and multi-minor tracking.
+- Implemented the ten detailed rule sets supplied in Advisory 63 v1.11; marked the remaining sixteen as department-review trackers.
+- Enforced the shared two-course Open Elective allowance across all selected minors, base-course exclusions, project limits and CSE/Data Analytics online-provider restrictions.
+- Added selected minors and placement issues to both one-sheet Excel exports.
+- Kept all eight major targets unchanged and honours excluded.
+
 ## 0.5.0
 
 - Added Civil, Electrical, ICDT, Materials and Mechanical Engineering, completing all eight majors for the 2024 admission batch.

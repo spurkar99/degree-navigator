@@ -18,6 +18,7 @@ export type BasketId =
   | "discipline_core"
   | "discipline_elective"
   | "civil_design"
+  | "additional"
   | "excluded"
   | "unresolved";
 
@@ -55,6 +56,7 @@ export const BASKET_LABELS: Record<BasketId, string> = {
   discipline_core: "Discipline Core",
   discipline_elective: "Discipline Elective",
   civil_design: "CE Design / Applications",
+  additional: "Additional learning (minor only)",
   excluded: "Does not count",
   unresolved: "I'm not sure",
 };
@@ -62,7 +64,7 @@ export const BASKET_LABELS: Record<BasketId, string> = {
 export const RULESET = {
   programme: "B.Tech Chemical Engineering",
   cohort: "2024–28",
-  version: "0.5.0",
+  version: "0.6.0",
   source: "Academic Affairs Advisory No. 13 (January 2025)",
 } as const;
 
@@ -237,7 +239,7 @@ const aiRequirements: Requirement[] = [
   { id: "ai_elective", name: "Other AI elective credits", required: 16, note: "20 elective credits overall, including at least 4 from the CSE basket" },
 ];
 function optionIds(requirements: readonly Requirement[]): BasketId[] {
-  return [...requirements.map((item) => item.id), "excluded", "unresolved"];
+  return [...requirements.map((item) => item.id), "additional", "excluded", "unresolved"];
 }
 
 // January 2025 Advisory 13, pp. 12–16; codes from sample paths pp. 19, 21–24.
