@@ -326,6 +326,14 @@ export default function App() {
             </div>
 
             <div className="semester-list">
+              <aside className="panel semester-card" aria-labelledby="copy-courses-heading">
+                <h2 id="copy-courses-heading">Where to copy your courses</h2>
+                <ol>
+                  <li>In the student portal sidebar, click <strong>Courses</strong>.</li>
+                  <li>Click <strong>Registered Courses View</strong>.</li>
+                  <li>Copy the course table from there and paste it into the matching semester box below. Include the course codes, names and credits.</li>
+                </ol>
+              </aside>
               {semesters.map((semester) => {
                 const count = parseSemester(inputs[semester] ?? "", semester).courses.length;
                 return (
